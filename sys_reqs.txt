@@ -1,0 +1,207 @@
+Chemical Inventory System
+
+1. This system utilizes Google Sheets and Google Forms to manage chemical inventory transactions.
+2. It uses Google Apps Script to automate data processing and updates across multiple sheets, and updating dropdowns in Google Forms based on current data.
+3. Google Forms is named: "Chemical Inventory Transaction Form": https://docs.google.com/forms/d/18xl0TYI9pfV9IzuNfDxuT-cEf0KUFfTuNBf9HWUnxfY/edit?edit_requested=true
+4. Google Sheets is named: "Chem Inventory": https://docs.google.com/spreadsheets/d/1PH0WfiewO5pxwI50SpmEqSj5EqTU2G9T0LA6SmL-ir4/edit?usp=sharing
+5. References:
+    - chem_inv_data.csv: contains data for CHEM_LIST, SUPPLIER_BRANDS ("Suppliers" sheet, "Brands" Sheet, this will be manually imported to google sheets once the system is set up)
+    - inv_chart.jpeg: contains ER diagram for the system
+================
+
+
+SHEETS and COLUMNS:
+
+a. Form Responses
+columns are the google form field names:
+Section 1:
+"Transaction Date"      #id: transact_date, date input 
+"Staff Name"            #id: chemist_name, dropdown from STAFF_LIST
+"Chemical Name"         #id: chem_name, dropdown from CHEM_LIST
+"Transaction Type"      #id: transaction_type, multiple choice input [IN, OUT]
+
+depending on the "Transaction Type" input:
+IN -> section "IN Transaction"
+OUT -> section "OUT Transactions"
+
+Section 2: ""IN" TRANSACTION"
+"Supplier"                  #id: supplier, dropdown from SUPPLIER_BRANDS
+"Brand"                     #id: brand, dropdown from SUPPLIER_BRANDS
+"Batch/Lot Number"          #id: batch_num_new, short answer text user input in the forms (and could be of differing formats, e.g. L103, B2024-01)
+"Number of Bottles"         #id: qty_bottle, number input
+"Volume/Weight per Bottle"  #id: vol_per_bottle, number input
+"Expiration Date"           #id: exp_date, date input
+"Location (Storage)"        #id: location, dropdown from LOC_LIST
+
+Section 3: ""OUT" TRANSACTION"
+"Out Type"                                  #id: out_type, multiple choice input [prep, transfer]
+"Select Batch/Lot Number Out"               #dropdown based on existing batch_num from BATCHES (this will be formatted in the dropdown as "<chem_name> - Batch: <batch_num> | Exp: <BATCHES.exp_date> | Qty: <BATCHES.ending_vol> <CHEM_LIST.UOM>", for example: "Sodium Chloride - Batch: L103 | Exp: 2024-12-31 | Current Qty: 500 mL)
+"Total Volume/Weight Out"                   #id: out_vol, number input
+"Outgoing Transaction Comment (Optional)"   #id: xfer_prep_for, long answer text input
+Note: If no batches yet in BATCHES, the dropdown for "Select Batch/Lot Number Out" should show "No available batches"
+
+b. STAFF_LIST
+chemist_id      #user input 
+chemist_name    #user input (used for dropdown in Google Forms) [Kim, Khent, Nikko...]
+
+c. CHEM_LIST
+chem_name       #used for dropdown in Google Forms, unique; used to populate [MASTERLIST] chem_name, from "chem_inv_data.csv" -> "Chemicals" sheet
+liq_sol         #{liquid, solid}, used to populate MASTERLIST.liq_sol for each chem_name
+UOM             #user input [mL, g...], used to populate MASTERLIST.UOM for each chem_name
+safety_lvl      #user input [750, 1800...], used to populate status in [MASTERLIST] for each chem_name
+
+d. SUPPLIER_BRANDS #suppliers from "chem_inv_data.csv" -> "Suppliers" sheet, brands from "chem_inv_data.csv" -> "Brands" sheet
+supplier        #user input [SMFI, Belman Labs, Yana Chemodities], dropdown in Google Forms: "IN Transaction" > "Supplier" (if supplier is "SMFI", MASTERLIST.in_supplier_total is updated, else MASTERLIST.in_supplier_total)
+brand_name      #user input, dropdown in Google Forms "IN Transaction" > "Brand"
+
+e. LOC_LIST
+location        #user input, dropdown in Google Forms section "IN Transaction" > "Location (Storage)"
+
+f. BATCHES      #updated from CHEM_LIST (only the "liq_sol" and "UOM") and Form Responses
+in_date         #from from Form Responses.qty_bottle
+batch_num       #from Form Responses.batch_num_new; if there is another Form Response (transaction_type: in) for an existing batch_num (i.e. L103), add a suffix "L103(1), L103(2),..."
+chem_name       #from Form Responses.chem_name
+supplier        #from Form Responses.supplier
+brand           #from Form Responses.brand
+liq_sol         #auto: based on lookup of chem_name: CHEM_LIST.liq_sol
+UOM             #auto: based on lookup of chem_name: CHEM_LIST.UOM
+qty_bottle      #from Form Responses.qty_bottle
+vol_per_bottle  #from Form Responses.vol_per_bottle
+vol_total       #formula: qty_bottle * vol_per_bottle
+exp_date        #from Form Responses.exp_date
+out_prep        #update: update: out_vol based on out_type in Form Responses if out_type is "prep"
+out_xfer        #update: update: out_vol based on out_type in Form Responses if out_type is "transfer"
+ending_vol      #formula: vol_total - (out_prep + out_xfer)
+location        #from Form Responses.location
+
+g. MASTERLIST   #updated from BATCHES and CHEM_LIST (only the chem_name, liq_sol, UOM, status)
+chem_name       #auto: unique, all chem_name in CHEM_LIST
+liq_sol         #auto: based on lookup of chem_name: CHEM_LIST.liq_sol
+UOM             #auto: based on lookup of chem_name: CHEM_LIST.UOM
+beginning_inv   #manual user input
+in_supplier_total   #update formula: sum of vol_total (qty_bottle * vol_per_bottle) from BATCHES where supplier is NOT "SMFI" and chem_name matches
+in_transfer_total   #update formula: sum of vol_total (qty_bottle * vol_per_bottle) from BATCHES where supplier is "SMFI" and chem_name matches
+out_prep_total      #update formula: sum of out_prep from BATCHES where chem_name matches
+out_xfer_total      #update formula: sum of out_xfer from BATCHES where chem_name matches
+current_total       #formula: beginning_inv + (in_supplier_total + in_transfer_total) - (out_prep_total + out_xfer_total)
+status              #auto: if current_total <= safety_lvl (from CHEM_LIST), "CRITICAL", else "OK"
+
+================
+
+SETUP:
+
+1. Google Apps Script creates Sheet with the following sheets with their respective columns:
+- "Form Responses" (linked to Google Form)
+- "STAFF_LIST" #chemist_name [use Kim, Khent, Nikko for initial data]
+- "CHEM_LIST" #chem_name, for initial data, use:
+        {Sodium Chloride: liq_sol: solid, UOM: g, safety_lvl: 750}, 
+        {Ethanol: liq_sol: liquid, UOM: mL, safety_lvl: 1800},
+        {Ammonium metavanadate:	 liq_sol: solid, UOM: g, safety_lvl: 3}
+- "SUPPLIER_BRANDS" #for suppliers use: 
+    [Yana Chemodities
+    Belman Laboratories
+    Cebu Far Eastern Drug, Inc.
+    Inphilco, Inc.
+    Hamburg Trading Corporation
+    ], for brand_name use:
+    [N/A, 
+    Chem-Supply,
+    RCI Labscan,
+    Loba Chemie,
+    Supelco,
+    Scharlau,
+    Himedia,
+    Sisco Research Laboratories,
+    Microtracers TM,
+    Sigma Aldrich,
+    Merck,
+    Ajax Finechem
+    ]
+- "LOC_LIST" #locations [Chemical Storage Room A, Chemical Storage Room B...]
+- "BATCHES"
+- "MASTERLIST"      # automatically populated with unique chem_name from CHEM_LIST, together with liq_sol and UOM from CHEM_LIST, and status based on current_total vs safety_lvl
+2. User manually populates STAFF_LIST, CHEM_LIST, SUPPLIER_BRANDS, LOC_LIST with initial data
+3. Google Form is created with fields as per "Form Responses" sheet, with dropdowns populated from STAFF_LIST, CHEM_LIST, SUPPLIER_BRANDS, LOC_LIST as specified
+4. Google Apps Script is set to trigger on form submission to update BATCHES and MASTERLIST accordingly
+
+================
+
+FLOW OF DATA after form submission:
+
+1. On form submission, new row is added to "Form Responses" sheet
+2. "Form Responses" updates "BATCHES", "BATCHES" updates "MASTERLIST (which is already pre-populated with unique chem_name from CHEM_LIST together with liq_sol and UOM from CHEM_LIST, and status based on current_total vs safety_lvl)":
+   a. If "Transaction Type" is "IN":
+      - New entry/row is added to BATCHES with details from the form
+      - If batch_num_new already exists in BATCHES, add new entry/row with suffix added to make it unique
+      - MASTERLIST is updated to reflect new inventory levels for each chem_name
+   b. If "Transaction Type" is "OUT":
+      - Corresponding batch in BATCHES (based on selected existing batch_num) is updated to reduce ending_vol based on out_vol
+      - If out_type is "prep", out_prep in BATCHES is increased by out_vol
+      - If out_type is "transfer", out_xfer in BATCHES is increased by out_vol
+      - MASTERLIST is updated to reflect new inventory levels for each chem_name
+3. Google Apps Script triggers function to process new form response
+4. Google Forms dropdowns, specifically the dropdown for "Select Batch/Lot Number Out" (id: batch_num) in "OUT" transactions, are dynamically populated based on current entries in BATCHES, formatted in the dropdown as "<chem_name> - Batch: <batch_num> | Exp: <BATCHES.exp_date> | Qty: <BATCHES.ending_vol> <CHEM_LIST.UOM>"
+
+================
+
+OTHER REQUIREMENTS:
+1. Timed (every 6 hour) updates for Google Forms dropdowns for the CHEM_LIST, SUPPLIER_BRANDS, STAFF_LIST (chemist_name), LOC_LIST, and BATCHES (for batch_num in "OUT" transactions) to ensure they reflect the most current data from their respective sheets.
+2. If the user manually updates "Form Responses" sheet (e.g., correcting an entry), a Google Scripts Apps script function can be triggered to reprocess that specific entry and update BATCHES and MASTERLIST accordingly. (for instance, if they got an OUT transaction wrong and need to correct the out_vol)
+3. If the user manually adds new chemicals to "CHEM_LIST" sheet, run the `manualSyncChemicals()` function to automatically add these new chemicals to MASTERLIST with default values (beginning_inv: 0, all totals: 0, status: "OK"). This can also be done automatically during form submission and scheduled updates.
+4. Data validation and error handling to ensure that entries in "Form Responses" are valid (e.g., ensuring that out_vol does not exceed available ending_vol in BATCHES for the selected existing batch_num).
+5. Always make sure that batch_num in BATCHES is unique; if a duplicate batch_num is detected during an "IN" transaction, append a suffix to make it unique (e.g., L103(1), L103(2), etc.)
+6. Always make sure that batch_num is not reformmatted to update the dropdown, for example, if the batch_num is "L103", it should not be reformatted to "Sodium Chloride - Batch: L103 | Exp: 2024-12-31 | Current Qty: 500 mL" in the BATCHES sheet; this formatting is only for the dropdown in Google Forms for "OUT" transactions.
+7. When updating the MASTERLIST status, ensure that it accurately reflects the current_total against the safety_lvl from CHEM_LIST for each chem_name.
+8. Google Apps Script code should be modular, with separate functions for handling form submissions, updating BATCHES, updating MASTERLIST, syncing CHEM_LIST with MASTERLIST, and refreshing Google Forms dropdowns.
+9. Triggers are set manually through the Google Apps Script interface to ensure proper execution of automatic synchronization, timed updates and form submission handling:
+   - `onFormSubmit` trigger for form submission processing
+   - `timedUpdateDropdowns` trigger for scheduled maintenance every 6 hours
+   - `onEdit` trigger for immediate CHEM_LIST synchronization when sheet is edited
+9. Google Apps scripts should only update the following dropdowns in Google Forms:
+    - chem_name (from CHEM_LIST)
+    - chemist_name (from STAFF_LIST)
+    - supplier and brand (from SUPPLIER_BRANDS)
+    - location (from LOC_LIST)
+    - batch_num (from BATCHES for "OUT" transactions)
+10. Form Responses sheet should not be automatically created by the Google Apps Script; it should be created automatically when linking the Google Form to the Google Sheet.
+11. Google Forms is manually created and linked to the Google Sheet; Google Apps Script only handles  setting up the sheets (STAFF_LIST, CHEM_LIST, SUPPLIER_BRANDS, LOC_LIST, BATCHES, MASTERLIST) together with the necessary formulas, data processing (specifically Form Responses -> BATCHES, then BATCHES -> MASTERLIST), and dropdown updates
+
+================
+
+APPS SCRIPT FUNCTIONS:
+
+- onFormSubmit(e): main trigger function, processes form submissions
+- timedUpdateDropdowns(): scheduled function (every 6 hours) to update form dropdowns
+- onEdit(e): auto-sync trigger when CHEM_LIST is manually edited
+- syncChemListWithMasterlist(): ensures new chemicals in CHEM_LIST appear in MASTERLIST
+- updateMasterlist(): recalculates all MASTERLIST values based on BATCHES data
+- updateFormDropdowns(): refreshes all dropdown options in Google Form
+- manualSyncChemicals(): manual function to sync chemicals and update form dropdowns
+
+DATA MANAGEMENT FUNCTIONS:
+
+- quickCleanupTestData(): safely removes test data (batches containing "TEST" pattern)
+  * Clears test batches and form responses
+  * Resets MASTERLIST calculations
+  * Preserves beginning inventory and system structure
+  * Updates form dropdowns
+  * Recommended for development-to-production transition
+
+- cleanupTestData(options): configurable cleanup with custom options
+  * clearBatches: removes batch data (default: true)
+  * clearFormResponses: clears form submission history (default: true)
+  * resetMasterlistTotals: resets calculations (default: true)
+  * preserveBeginningInventory: keeps beginning inventory values (default: false)
+  * testBatchPattern: pattern for selective batch removal (default: "TEST")
+
+- nuclearCleanupAllData(): complete system data reset with user confirmation
+  * Removes ALL transaction data
+  * Resets ALL calculations including beginning inventory
+  * Requires user confirmation dialog
+  * Use only for complete system reset
+
+================
+
+END OF FILE
+
+

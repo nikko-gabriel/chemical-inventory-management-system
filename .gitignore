@@ -1,0 +1,38 @@
+# Google Apps Script
+.clasp.json
+appsscript.json
+
+# Sensitive data
+config.js
+secrets.js
+
+# Temporary files
+*.tmp
+*.temp
+~*
+
+# Excel files (if they contain sensitive data)
+*.xlsx
+*.xls
+
+# Images (optional - remove if you want to include them)
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# Node modules (if using clasp)
+node_modules/
+package-lock.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# VS Code
+.vscode/
