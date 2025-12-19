@@ -11,9 +11,9 @@
 // Configuration constants (same as main system)
 const SPREADSHEET_ID_REPORTS = "1PH0WfiewO5pxwI50SpmEqSj5EqTU2G9T0LA6SmL-ir4";
 
-// Sheet names
+// Sheet names - MUST match your actual spreadsheet sheet names
 const REPORTS_SHEET_NAMES = {
-  FORM_RESPONSES: "Form Responses",
+  FORM_RESPONSES: "Form Responses 1",  // Check actual name in your spreadsheet
   BATCHES: "BATCHES",
   CHEM_LIST: "CHEM_LIST",
   REPORTS: "REPORTS",
@@ -62,27 +62,255 @@ function setupReportsSheetHeaders(reportsSheet) {
     .setFontWeight("bold")
     .setHorizontalAlignment("center");
 
-  // Instructions section
-  reportsSheet.getRange(3, 1).setValue("INSTRUCTIONS:");
-  reportsSheet.getRange(3, 1).setFontWeight("bold");
+  // User Interface Section
+  reportsSheet.getRange(3, 1).setValue("📊 REPORT GENERATOR");
   reportsSheet
-    .getRange(4, 1)
-    .setValue("1. Use generateChemicalReport() function to create reports");
+    .getRange(3, 1)
+    .setFontSize(14)
+    .setFontWeight("bold")
+    .setBackground("#e6f3ff");
+
+  // Input fields
+  reportsSheet.getRange(4, 1).setValue("1. Select Chemical:");
+  reportsSheet.getRange(4, 1).setFontWeight("bold");
+
+  reportsSheet.getRange(5, 1).setValue("2. Start Date:");
+  reportsSheet.getRange(5, 1).setFontWeight("bold");
+  reportsSheet.getRange(5, 3).setValue("(YYYY-MM-DD format)");
+  reportsSheet.getRange(5, 3).setFontStyle("italic").setFontColor("#666666");
+
+  reportsSheet.getRange(6, 1).setValue("3. End Date:");
+  reportsSheet.getRange(6, 1).setFontWeight("bold");
+  reportsSheet.getRange(6, 3).setValue("(YYYY-MM-DD format)");
+  reportsSheet.getRange(6, 3).setFontStyle("italic").setFontColor("#666666");
+
+  reportsSheet.getRange(7, 1).setValue("4. Generate Report:");
+  reportsSheet.getRange(7, 1).setFontWeight("bold");
+  reportsSheet.getRange(7, 2).setValue("Type 'GO' here →");
+  reportsSheet.getRange(7, 2).setFontStyle("italic").setFontColor("#666666");
+
+  // Set up input cells with formatting
   reportsSheet
-    .getRange(5, 1)
-    .setValue("2. Specify chemical name, start date, and end date");
+    .getRange(4, 2)
+    .setBackground("#f9f9f9")
+    .setBorder(true, true, true, true, false, false);
   reportsSheet
-    .getRange(6, 1)
-    .setValue("3. Report will appear below this section");
+    .getRange(5, 2)
+    .setBackground("#f9f9f9")
+    .setBorder(true, true, true, true, false, false);
+  reportsSheet
+    .getRange(6, 2)
+    .setBackground("#f9f9f9")
+    .setBorder(true, true, true, true, false, false);
+  reportsSheet
+    .getRange(7, 3)
+    .setBackground("#fff2cc")
+    .setBorder(true, true, true, true, false, false);
+
+  // Example values and instructions
+  reportsSheet.getRange(5, 2).setValue("2025-12-01");
+  reportsSheet.getRange(6, 2).setValue("2025-12-31");
 
   // Separator
-  reportsSheet.getRange(8, 1, 1, 10).setBackground("#e0e0e0");
+  reportsSheet.getRange(9, 1, 1, 10).setBackground("#e0e0e0");
 
-  console.log("REPORTS sheet headers set up");
+  // Set up chemical dropdown
+  setupChemicalDropdown(reportsSheet);
+
+  console.log("REPORTS sheet headers and UI set up");
 }
 
 /**
- * Generates a comprehensive report for a specific chemical within a date range
+ * Sets up chemical dropdown in the REPORTS sheet
+ */
+function setupChemicalDropdown(reportsSheet) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const chemListSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.CHEM_LIST);
+
+    if (!chemListSheet) {
+      console.log("CHEM_LIST sheet not found, skipping dropdown setup");
+      return;
+    }
+
+    const chemData = chemListSheet.getDataRange().getValues();
+    const chemicals = [];
+
+    // Get chemical names from CHEM_LIST (skip header row)
+    for (let i = 1; i < chemData.length; i++) {
+      if (chemData[i][0]) {
+        chemicals.push(chemData[i][0]);
+      }
+    }
+
+    if (chemicals.length > 0) {
+      // Create dropdown validation
+      const rule = SpreadsheetApp.newDataValidation()
+        .requireValueInList(chemicals)
+        .setAllowInvalid(false)
+        .setHelpText("Select a chemical from the list")
+        .build();
+
+      reportsSheet.getRange(4, 2).setDataValidation(rule);
+      console.log(
+        `Chemical dropdown set up with ${chemicals.length} chemicals`
+      );
+    } else {
+      reportsSheet.getRange(4, 2).setValue("No chemicals found");
+      console.log("No chemicals found in CHEM_LIST");
+    }
+  } catch (error) {
+    console.error("Error setting up chemical dropdown:", error);
+    reportsSheet.getRange(4, 2).setValue("Error loading chemicals");
+  }
+}
+
+/**
+ * Handles automatic report generation when user inputs are detected
+ * This function is triggered by the onEdit event
+ */
+function handleReportTrigger(e) {
+  try {
+    const sheet = e.source.getActiveSheet();
+
+    // Only process if this is the REPORTS sheet
+    if (sheet.getName() !== REPORTS_SHEET_NAMES.REPORTS) {
+      return;
+    }
+
+    const range = e.range;
+    const row = range.getRow();
+    const col = range.getColumn();
+
+    // Check if user typed 'GO' in the trigger cell (row 7, col 3)
+    if (row === 7 && col === 3) {
+      const triggerValue = range.getValue();
+
+      if (triggerValue && triggerValue.toString().toUpperCase() === "GO") {
+        // Clear the trigger cell
+        range.setValue("Generating...");
+
+        // Get input values
+        const chemical = sheet.getRange(4, 2).getValue();
+        const startDate = sheet.getRange(5, 2).getValue();
+        const endDate = sheet.getRange(6, 2).getValue();
+
+        // Generate report
+        generateReportFromUI(chemical, startDate, endDate, sheet);
+
+        // Clear trigger cell
+        range.setValue("");
+      }
+    }
+  } catch (error) {
+    console.error("Error in report trigger handler:", error);
+    // Clear trigger cell on error
+    try {
+      e.source.getActiveSheet().getRange(7, 3).setValue("Error - try again");
+    } catch (clearError) {
+      console.error("Failed to clear trigger cell:", clearError);
+    }
+  }
+}
+
+/**
+ * Generates report from user interface inputs with user-friendly error handling
+ */
+function generateReportFromUI(chemical, startDate, endDate, reportsSheet) {
+  try {
+    // Validate inputs
+    if (!chemical || chemical.toString().trim() === "") {
+      showUserError(reportsSheet, "Please select a chemical from the dropdown");
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      showUserError(reportsSheet, "Please enter both start and end dates");
+      return;
+    }
+
+    // Convert dates
+    let reportStartDate, reportEndDate;
+
+    if (startDate instanceof Date) {
+      reportStartDate = startDate;
+    } else {
+      reportStartDate = new Date(startDate);
+    }
+
+    if (endDate instanceof Date) {
+      reportEndDate = endDate;
+    } else {
+      reportEndDate = new Date(endDate);
+    }
+
+    // Validate dates
+    if (isNaN(reportStartDate) || isNaN(reportEndDate)) {
+      showUserError(
+        reportsSheet,
+        "Invalid date format. Please use YYYY-MM-DD (e.g., 2025-12-01)"
+      );
+      return;
+    }
+
+    if (reportStartDate > reportEndDate) {
+      showUserError(
+        reportsSheet,
+        "Start date must be before or equal to end date"
+      );
+      return;
+    }
+
+    // Clear previous report
+    clearReportArea(reportsSheet);
+
+    // Show progress message
+    reportsSheet.getRange(11, 1).setValue("🔄 Generating report...");
+    reportsSheet.getRange(11, 1).setFontStyle("italic");
+
+    // Generate the report
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportData = collectReportData(
+      chemical,
+      reportStartDate,
+      reportEndDate,
+      ss
+    );
+
+    // Clear progress message
+    reportsSheet.getRange(11, 1).setValue("");
+
+    // Write report
+    writeReportToSheet(
+      reportsSheet,
+      reportData,
+      chemical,
+      reportStartDate,
+      reportEndDate
+    );
+
+    // Show success message
+    reportsSheet.getRange(7, 2).setValue(`✅ Report generated successfully!`);
+    reportsSheet.getRange(7, 2).setFontColor("#008000").setFontStyle("italic");
+
+    console.log(`Report generated successfully for ${chemical}`);
+  } catch (error) {
+    console.error("Error generating report from UI:", error);
+    showUserError(reportsSheet, `Error: ${error.message}`);
+  }
+}
+
+/**
+ * Shows user-friendly error messages in the interface
+ */
+function showUserError(reportsSheet, message) {
+  reportsSheet.getRange(7, 2).setValue(`❌ ${message}`);
+  reportsSheet.getRange(7, 2).setFontColor("#ff0000").setFontStyle("italic");
+  reportsSheet.getRange(7, 3).setValue("");
+}
+
+/**
+ * Generates a chemical report for the specified chemical and date range
  * @param {string} chemicalName - Name of the chemical to report on
  * @param {Date|string} startDate - Start date for the report period
  * @param {Date|string} endDate - End date for the report period
@@ -161,33 +389,50 @@ function generateChemicalReport(
 }
 
 /**
- * Clears the report area (below row 8) while preserving headers and instructions
+ * Clears the report area (below row 9) while preserving headers and interface
  */
 function clearReportArea(reportsSheet) {
   const lastRow = reportsSheet.getLastRow();
   const lastCol = reportsSheet.getLastColumn();
 
-  if (lastRow > 8) {
-    reportsSheet.getRange(9, 1, lastRow - 8, Math.max(lastCol, 10)).clear();
+  if (lastRow > 9) {
+    reportsSheet.getRange(10, 1, lastRow - 9, Math.max(lastCol, 10)).clear();
   }
+
+  // Also clear any status messages
+  reportsSheet.getRange(7, 2).setValue("Type 'GO' here →");
+  reportsSheet.getRange(7, 2).setFontColor("#666666").setFontStyle("italic");
 }
 
 /**
  * Collects all relevant transaction data for the specified chemical and date range
  */
 function collectReportData(chemicalName, startDate, endDate, ss) {
-  const formResponsesSheet = ss.getSheetByName(
-    REPORTS_SHEET_NAMES.FORM_RESPONSES
-  );
-  const batchesSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.BATCHES);
-  const chemListSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.CHEM_LIST);
+  try {
+    // Get sheets with error checking
+    const formResponsesSheet = ss.getSheetByName(
+      REPORTS_SHEET_NAMES.FORM_RESPONSES
+    );
+    if (!formResponsesSheet) {
+      throw new Error(`Sheet "${REPORTS_SHEET_NAMES.FORM_RESPONSES}" not found. Available sheets: ${ss.getSheets().map(s => s.getName()).join(', ')}`);
+    }
+    
+    const batchesSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.BATCHES);
+    if (!batchesSheet) {
+      throw new Error(`Sheet "${REPORTS_SHEET_NAMES.BATCHES}" not found. Available sheets: ${ss.getSheets().map(s => s.getName()).join(', ')}`);
+    }
+    
+    const chemListSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.CHEM_LIST);
+    if (!chemListSheet) {
+      throw new Error(`Sheet "${REPORTS_SHEET_NAMES.CHEM_LIST}" not found. Available sheets: ${ss.getSheets().map(s => s.getName()).join(', ')}`);
+    }
 
-  // Get chemical properties
-  const chemProps = getChemicalProperties(chemicalName, chemListSheet);
+    // Get chemical properties
+    const chemProps = getChemicalProperties(chemicalName, chemListSheet);
 
-  // Get all form responses
-  const formData = formResponsesSheet.getDataRange().getValues();
-  const formHeaders = formData[0];
+    // Get all form responses
+    const formData = formResponsesSheet.getDataRange().getValues();
+    const formHeaders = formData[0];
 
   // Filter transactions for this chemical within date range
   const transactions = [];
@@ -252,6 +497,10 @@ function collectReportData(chemicalName, startDate, endDate, ss) {
       end: endDate,
     },
   };
+  } catch (error) {
+    console.error("Error collecting report data:", error);
+    throw error;
+  }
 }
 
 /**
@@ -353,7 +602,7 @@ function writeReportToSheet(
   startDate,
   endDate
 ) {
-  let currentRow = 10; // Start below headers
+  let currentRow = 11; // Start below the user interface
 
   // Report title and metadata
   reportsSheet.getRange(currentRow, 1).setValue(`REPORT: ${chemicalName}`);
@@ -604,13 +853,15 @@ function formatReportSheet(reportsSheet, lastRow) {
     reportsSheet.autoResizeColumn(col);
   }
 
-  // Add borders to the report area
-  reportsSheet
-    .getRange(10, 1, lastRow - 10, 10)
-    .setBorder(true, true, true, true, true, true);
+  // Add borders to the report area (starting from row 11)
+  if (lastRow > 11) {
+    reportsSheet
+      .getRange(11, 1, lastRow - 10, 10)
+      .setBorder(true, true, true, true, true, true);
+  }
 
-  // Freeze the instruction area
-  reportsSheet.setFrozenRows(8);
+  // Freeze the user interface area
+  reportsSheet.setFrozenRows(9);
 }
 
 /**
@@ -696,7 +947,134 @@ function getChemicalsWithTransactions() {
 }
 
 /**
+ * Main onEdit trigger for the reports system
+ * Add this function to your existing onEdit trigger in Code.gs, or create a new trigger
+ */
+function onEditReports(e) {
+  handleReportTrigger(e);
+}
+
+/**
+ * Alternative: If you want to add this to your existing Code.gs onEdit function,
+ * add this code block to your existing onEdit function:
+ *
+ * // Reports add-on trigger
+ * if (sheet.getName() === "REPORTS") {
+ *   handleReportTrigger(e);
+ * }
+ */
+
+/**
+ * Refreshes the chemical dropdown with current chemicals from CHEM_LIST
+ * Call this function if you add new chemicals and want to update the dropdown
+ */
+function refreshChemicalDropdown() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+
+    if (!reportsSheet) {
+      throw new Error(
+        "REPORTS sheet not found. Run initializeReportsSheet() first."
+      );
+    }
+
+    setupChemicalDropdown(reportsSheet);
+    console.log("Chemical dropdown refreshed successfully");
+
+    return {
+      success: true,
+      message: "Chemical dropdown refreshed successfully",
+    };
+  } catch (error) {
+    console.error("Error refreshing chemical dropdown:", error);
+    throw error;
+  }
+}
+
+/**
+ * Quick helper functions for common date ranges - can be called from UI buttons or manually
+ */
+
+/**
+ * Generates current month report for the selected chemical
+ */
+function generateCurrentMonthReport() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+
+    if (!reportsSheet) {
+      throw new Error("REPORTS sheet not found");
+    }
+
+    const chemical = reportsSheet.getRange(4, 2).getValue();
+
+    if (!chemical || chemical.toString().trim() === "") {
+      throw new Error("Please select a chemical first");
+    }
+
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    // Set dates in the UI
+    reportsSheet
+      .getRange(5, 2)
+      .setValue(startOfMonth.toISOString().split("T")[0]);
+    reportsSheet
+      .getRange(6, 2)
+      .setValue(endOfMonth.toISOString().split("T")[0]);
+
+    // Generate report
+    generateReportFromUI(chemical, startOfMonth, endOfMonth, reportsSheet);
+
+    return { success: true, message: "Current month report generated" };
+  } catch (error) {
+    console.error("Error generating current month report:", error);
+    throw error;
+  }
+}
+
+/**
+ * Generates last 30 days report for the selected chemical
+ */
+function generateLast30DaysReportUI() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+
+    if (!reportsSheet) {
+      throw new Error("REPORTS sheet not found");
+    }
+
+    const chemical = reportsSheet.getRange(4, 2).getValue();
+
+    if (!chemical || chemical.toString().trim() === "") {
+      throw new Error("Please select a chemical first");
+    }
+
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Set dates in the UI
+    reportsSheet
+      .getRange(5, 2)
+      .setValue(thirtyDaysAgo.toISOString().split("T")[0]);
+    reportsSheet.getRange(6, 2).setValue(today.toISOString().split("T")[0]);
+
+    // Generate report
+    generateReportFromUI(chemical, thirtyDaysAgo, today, reportsSheet);
+
+    return { success: true, message: "Last 30 days report generated" };
+  } catch (error) {
+    console.error("Error generating last 30 days report:", error);
+    throw error;
+  }
+}
+/**
  * Example usage function - demonstrates how to use the reports system
+ * This shows both the new UI method and the original script method
  */
 function exampleReportUsage() {
   console.log("=== REPORTS ADD-ON EXAMPLE USAGE ===");
@@ -705,21 +1083,19 @@ function exampleReportUsage() {
   console.log("1. Initializing reports sheet...");
   initializeReportsSheet();
 
-  // Generate a report for Sodium Chloride for the last 30 days
-  console.log("2. Generating sample report...");
-  try {
-    const result = generateLast30DaysReport("Sodium Chloride");
-    console.log("Report generated:", result.message);
-    console.log("Transactions found:", result.transactionCount);
-  } catch (error) {
-    console.log(
-      "Sample report failed (this is normal if no data exists):",
-      error.message
-    );
-  }
+  console.log("2. Setting up user interface...");
+  refreshChemicalDropdown();
 
-  // List all chemicals
-  console.log("3. Available chemicals:");
+  console.log("3. Reports are now ready for user interface!");
+  console.log("   Users can:");
+  console.log("   - Select chemical from dropdown in cell B4");
+  console.log("   - Enter start date in cell B5 (YYYY-MM-DD)");
+  console.log("   - Enter end date in cell B6 (YYYY-MM-DD)");
+  console.log("   - Type 'GO' in cell C7 to generate report");
+  console.log("");
+
+  // Show available chemicals
+  console.log("4. Available chemicals:");
   try {
     const chemicals = getChemicalsWithTransactions();
     console.log(
@@ -730,6 +1106,199 @@ function exampleReportUsage() {
     console.log("Error getting chemicals:", error.message);
   }
 
-  console.log("=== EXAMPLE COMPLETE ===");
-  console.log("Check the REPORTS sheet in your spreadsheet!");
+  console.log("=== USER INTERFACE READY ===");
+  console.log(
+    "Check the REPORTS sheet - users can now generate reports without scripts!"
+  );
+}
+
+/**
+ * Test function to diagnose trigger and setup issues
+ * Run this if typing "GO" doesn't work
+ */
+function testReportsSetup() {
+  console.log("=== TESTING REPORTS SETUP ===");
+
+  try {
+    // Check if REPORTS sheet exists
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+    console.log("REPORTS sheet exists:", !!reportsSheet);
+
+    if (!reportsSheet) {
+      console.log("REPORTS sheet missing - run initializeReportsSheet() first");
+      return;
+    }
+
+    // Check triggers
+    const triggers = ScriptApp.getProjectTriggers();
+    console.log("Project triggers found:", triggers.length);
+    let reportsTriggersFound = 0;
+
+    triggers.forEach((trigger, index) => {
+      console.log(`Trigger ${index + 1}:`);
+      console.log("  - Function:", trigger.getHandlerFunction());
+      console.log("  - Event:", trigger.getEventType());
+      console.log("  - Source:", trigger.getTriggerSource());
+
+      if (
+        trigger.getHandlerFunction() === "onEditReports" ||
+        trigger.getHandlerFunction() === "handleReportTrigger"
+      ) {
+        reportsTriggersFound++;
+      }
+    });
+
+    console.log("Reports-related triggers found:", reportsTriggersFound);
+
+    if (reportsTriggersFound === 0) {
+      console.log("❌ NO REPORTS TRIGGERS FOUND!");
+      console.log("SOLUTION: Go to Apps Script → Triggers → Add Trigger");
+      console.log("  - Function: onEditReports");
+      console.log("  - Event source: From spreadsheet");
+      console.log("  - Event type: On edit");
+    }
+
+    // Check cells content
+    console.log("\n=== CHECKING CELLS ===");
+    console.log("B4 (Chemical):", reportsSheet.getRange(4, 2).getValue());
+    console.log("B5 (Start Date):", reportsSheet.getRange(5, 2).getValue());
+    console.log("B6 (End Date):", reportsSheet.getRange(6, 2).getValue());
+    console.log("C7 (Trigger Cell):", reportsSheet.getRange(7, 3).getValue());
+
+    // Test chemical data
+    console.log("\n=== CHECKING DATA ===");
+    const chemicals = getChemicalsWithTransactions();
+    console.log("Available chemicals:", chemicals.length);
+    if (chemicals.length > 0) {
+      console.log("First few:", chemicals.slice(0, 5));
+    } else {
+      console.log("❌ NO CHEMICALS WITH TRANSACTIONS FOUND!");
+      console.log(
+        "Make sure you have transaction data in your Form Responses sheet"
+      );
+    }
+
+    // Test manual trigger simulation
+    console.log("\n=== TESTING MANUAL TRIGGER ===");
+    try {
+      // Simulate typing "GO" in C7
+      const mockEvent = {
+        range: reportsSheet.getRange(7, 3),
+        source: ss,
+      };
+
+      // Set a test value first
+      reportsSheet.getRange(7, 3).setValue("GO");
+
+      console.log("Simulating trigger with GO in C7...");
+      handleReportTrigger(mockEvent);
+      console.log("✅ Manual trigger simulation completed");
+    } catch (error) {
+      console.error("❌ Manual trigger failed:", error);
+      console.log("This indicates an issue with the trigger function itself");
+    }
+
+    console.log("\n=== TEST COMPLETE ===");
+    console.log("If manual trigger worked but typing GO doesn't:");
+    console.log("1. Check that you have an onEdit trigger set up");
+    console.log("2. Make sure trigger function is 'onEditReports'");
+    console.log("3. Try typing 'GO' in cell C7 again");
+  } catch (error) {
+    console.error("Test failed:", error);
+    console.log("Check your SPREADSHEET_ID_REPORTS constant");
+  }
+}
+
+/**
+ * Test report generation without UI
+ * Use this to test if core reporting works
+ */
+function testReportGeneration() {
+  console.log("=== TESTING REPORT GENERATION ===");
+
+  try {
+    // Get available chemicals first
+    const chemicals = getChemicalsWithTransactions();
+    console.log("Available chemicals:", chemicals);
+
+    if (chemicals.length === 0) {
+      console.log("❌ No chemicals with transactions found");
+      console.log("Make sure you have transaction data first");
+      return;
+    }
+
+    // Use first available chemical
+    const chemical = chemicals[0];
+    console.log("Testing with chemical:", chemical);
+
+    // Test with last 30 days
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    console.log(
+      "Date range:",
+      startDate.toDateString(),
+      "to",
+      endDate.toDateString()
+    );
+
+    // Generate report
+    const result = generateChemicalReport(chemical, startDate, endDate);
+
+    if (result && result.summary) {
+      console.log("✅ Report generated successfully!");
+      console.log("Summary:", result.summary);
+      console.log(
+        "Total transactions:",
+        result.transactions ? result.transactions.length : 0
+      );
+    } else {
+      console.log("❌ Report generation failed or returned no data");
+    }
+  } catch (error) {
+    console.error("❌ Test failed:", error);
+  }
+}
+
+/**
+ * Helper function to identify actual sheet names in your spreadsheet
+ * Run this if you get "sheet not found" errors
+ */
+function debugSheetNames() {
+  console.log("=== DEBUGGING SHEET NAMES ===");
+  
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const sheets = ss.getSheets();
+    
+    console.log("Found", sheets.length, "sheets:");
+    sheets.forEach((sheet, index) => {
+      console.log(`${index + 1}. "${sheet.getName()}"`);
+    });
+    
+    console.log("\n=== CURRENT CONFIGURATION ===");
+    console.log("FORM_RESPONSES:", `"${REPORTS_SHEET_NAMES.FORM_RESPONSES}"`);
+    console.log("BATCHES:", `"${REPORTS_SHEET_NAMES.BATCHES}"`);
+    console.log("CHEM_LIST:", `"${REPORTS_SHEET_NAMES.CHEM_LIST}"`);
+    console.log("REPORTS:", `"${REPORTS_SHEET_NAMES.REPORTS}"`);
+    
+    console.log("\n=== CHECKING MATCHES ===");
+    const formSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.FORM_RESPONSES);
+    console.log("Form Responses sheet found:", !!formSheet);
+    
+    const batchesSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.BATCHES);
+    console.log("BATCHES sheet found:", !!batchesSheet);
+    
+    const chemListSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.CHEM_LIST);
+    console.log("CHEM_LIST sheet found:", !!chemListSheet);
+    
+    console.log("\n=== INSTRUCTIONS ===");
+    console.log("If any sheets show 'false', update the REPORTS_SHEET_NAMES constant");
+    console.log("to match your actual sheet names exactly (case-sensitive).");
+    
+  } catch (error) {
+    console.error("Error accessing spreadsheet:", error);
+    console.log("Check your SPREADSHEET_ID_REPORTS constant");
+  }
 }
