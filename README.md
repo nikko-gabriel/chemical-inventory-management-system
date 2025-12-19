@@ -9,6 +9,7 @@ A comprehensive Google Sheets and Google Forms-based solution for managing chemi
 ## Quick Start
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/yourusername/chemical-inventory-management-system.git
    cd chemical-inventory-management-system

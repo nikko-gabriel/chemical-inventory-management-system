@@ -49,12 +49,14 @@ git push origin feature/new-functionality
 ### 3. Deployment Workflow
 
 #### Option A: Manual Deployment
+
 1. Copy code from GitHub to Google Apps Script Editor
 2. Update IDs and configuration
 3. Test in development environment
 4. Deploy to production
 
 #### Option B: Using Google clasp (Advanced)
+
 ```bash
 # Install clasp globally
 npm install -g @google/clasp
@@ -88,6 +90,7 @@ const CONFIG = {
 ### 5. Continuous Integration
 
 Consider setting up GitHub Actions for:
+
 - Code validation
 - Testing
 - Automated deployment (with clasp)
@@ -112,12 +115,14 @@ Consider setting up GitHub Actions for:
 ## Maintenance
 
 ### Regular Tasks:
+
 1. **Update dependencies** (if using clasp/npm)
 2. **Review and merge** pull requests
 3. **Tag stable releases**
 4. **Update documentation**
 
 ### Release Management:
+
 ```bash
 # Tag a new release
 git tag -a v1.1.0 -m "Release version 1.1.0 - Added new features"

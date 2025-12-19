@@ -5,7 +5,7 @@
  * Version: 1.0
  * Author: Chemical Inventory System
  * Date: December 2025
- * 
+ *
  * GitHub: https://github.com/nikko-gabriel/chemical-inventory-management-system
  */
 
