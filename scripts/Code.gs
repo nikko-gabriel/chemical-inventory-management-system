@@ -6,7 +6,7 @@
  * Author: Chemical Inventory System
  * Date: December 2025
  * 
- * GitHub: https://github.com/yourusername/chemical-inventory-management-system
+ * GitHub: https://github.com/nikko-gabriel/chemical-inventory-management-system
  */
 
 // Configuration - REPLACE WITH YOUR ACTUAL IDs
