@@ -13,7 +13,7 @@ const SPREADSHEET_ID_REPORTS = "1PH0WfiewO5pxwI50SpmEqSj5EqTU2G9T0LA6SmL-ir4";
 
 // Sheet names - MUST match your actual spreadsheet sheet names
 const REPORTS_SHEET_NAMES = {
-  FORM_RESPONSES: "Form Responses 1",  // Check actual name in your spreadsheet
+  FORM_RESPONSES: "Form Responses 1", // Check actual name in your spreadsheet
   BATCHES: "BATCHES",
   CHEM_LIST: "CHEM_LIST",
   REPORTS: "REPORTS",
@@ -414,89 +414,115 @@ function collectReportData(chemicalName, startDate, endDate, ss) {
       REPORTS_SHEET_NAMES.FORM_RESPONSES
     );
     if (!formResponsesSheet) {
-      throw new Error(`Sheet "${REPORTS_SHEET_NAMES.FORM_RESPONSES}" not found. Available sheets: ${ss.getSheets().map(s => s.getName()).join(', ')}`);
+      throw new Error(
+        `Sheet "${
+          REPORTS_SHEET_NAMES.FORM_RESPONSES
+        }" not found. Available sheets: ${ss
+          .getSheets()
+          .map((s) => s.getName())
+          .join(", ")}`
+      );
     }
-    
+
     const batchesSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.BATCHES);
     if (!batchesSheet) {
-      throw new Error(`Sheet "${REPORTS_SHEET_NAMES.BATCHES}" not found. Available sheets: ${ss.getSheets().map(s => s.getName()).join(', ')}`);
+      throw new Error(
+        `Sheet "${
+          REPORTS_SHEET_NAMES.BATCHES
+        }" not found. Available sheets: ${ss
+          .getSheets()
+          .map((s) => s.getName())
+          .join(", ")}`
+      );
     }
-    
+
     const chemListSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.CHEM_LIST);
     if (!chemListSheet) {
-      throw new Error(`Sheet "${REPORTS_SHEET_NAMES.CHEM_LIST}" not found. Available sheets: ${ss.getSheets().map(s => s.getName()).join(', ')}`);
+      throw new Error(
+        `Sheet "${
+          REPORTS_SHEET_NAMES.CHEM_LIST
+        }" not found. Available sheets: ${ss
+          .getSheets()
+          .map((s) => s.getName())
+          .join(", ")}`
+      );
     }
 
     // Get chemical properties
-    const chemProps = getChemicalProperties(chemicalName, chemListSheet);
+    const chemProps = getChemicalPropertiesForReports(
+      chemicalName,
+      chemListSheet
+    );
 
     // Get all form responses
     const formData = formResponsesSheet.getDataRange().getValues();
     const formHeaders = formData[0];
 
-  // Filter transactions for this chemical within date range
-  const transactions = [];
-  for (let i = 1; i < formData.length; i++) {
-    const row = formData[i];
-    const transactionDate = new Date(
-      row[formHeaders.indexOf("Transaction Date")]
-    );
-    const transactionChemical = row[formHeaders.indexOf("Chemical Name")];
+    // Filter transactions for this chemical within date range
+    const transactions = [];
+    for (let i = 1; i < formData.length; i++) {
+      const row = formData[i];
+      const transactionDate = new Date(
+        row[formHeaders.indexOf("Transaction Date")]
+      );
+      const transactionChemical = row[formHeaders.indexOf("Chemical Name")];
 
-    if (
-      transactionChemical === chemicalName &&
-      transactionDate >= startDate &&
-      transactionDate <= endDate
-    ) {
-      const transaction = {
-        date: transactionDate,
-        staff: row[formHeaders.indexOf("Staff Name")] || "",
-        chemical: transactionChemical,
-        type: row[formHeaders.indexOf("Transaction Type")] || "",
+      if (
+        transactionChemical === chemicalName &&
+        transactionDate >= startDate &&
+        transactionDate <= endDate
+      ) {
+        const transaction = {
+          date: transactionDate,
+          staff: row[formHeaders.indexOf("Staff Name")] || "",
+          chemical: transactionChemical,
+          type: row[formHeaders.indexOf("Transaction Type")] || "",
 
-        // IN transaction fields
-        supplier: row[formHeaders.indexOf("Supplier")] || "",
-        brand: row[formHeaders.indexOf("Brand")] || "",
-        batchNum: row[formHeaders.indexOf("Batch/Lot Number")] || "",
-        qtyBottle: row[formHeaders.indexOf("Number of Bottles")] || 0,
-        volPerBottle: row[formHeaders.indexOf("Volume/Weight per Bottle")] || 0,
-        expDate: row[formHeaders.indexOf("Expiration Date")] || "",
-        location: row[formHeaders.indexOf("Location (Storage)")] || "",
+          // IN transaction fields
+          supplier: row[formHeaders.indexOf("Supplier")] || "",
+          brand: row[formHeaders.indexOf("Brand")] || "",
+          batchNum: row[formHeaders.indexOf("Batch/Lot Number")] || "",
+          qtyBottle: row[formHeaders.indexOf("Number of Bottles")] || 0,
+          volPerBottle:
+            row[formHeaders.indexOf("Volume/Weight per Bottle")] || 0,
+          expDate: row[formHeaders.indexOf("Expiration Date")] || "",
+          location: row[formHeaders.indexOf("Location (Storage)")] || "",
 
-        // OUT transaction fields
-        outType: row[formHeaders.indexOf("Out Type")] || "",
-        selectedBatch:
-          row[formHeaders.indexOf("Select Batch/Lot Number Out")] || "",
-        outVol: row[formHeaders.indexOf("Total Volume/Weight Out")] || 0,
-        comment:
-          row[formHeaders.indexOf("Outgoing Transaction Comment (Optional)")] ||
-          "",
-      };
+          // OUT transaction fields
+          outType: row[formHeaders.indexOf("Out Type")] || "",
+          selectedBatch:
+            row[formHeaders.indexOf("Select Batch/Lot Number Out")] || "",
+          outVol: row[formHeaders.indexOf("Total Volume/Weight Out")] || 0,
+          comment:
+            row[
+              formHeaders.indexOf("Outgoing Transaction Comment (Optional)")
+            ] || "",
+        };
 
-      // Calculate total volume for IN transactions
-      if (transaction.type === "IN") {
-        transaction.totalVolume =
-          transaction.qtyBottle * transaction.volPerBottle;
-      } else {
-        transaction.totalVolume = transaction.outVol;
+        // Calculate total volume for IN transactions
+        if (transaction.type === "IN") {
+          transaction.totalVolume =
+            transaction.qtyBottle * transaction.volPerBottle;
+        } else {
+          transaction.totalVolume = transaction.outVol;
+        }
+
+        transactions.push(transaction);
       }
-
-      transactions.push(transaction);
     }
-  }
 
-  // Generate summary statistics
-  const summary = generateSummary(transactions, chemProps);
+    // Generate summary statistics
+    const summary = generateSummary(transactions, chemProps);
 
-  return {
-    transactions: transactions,
-    summary: summary,
-    chemicalProperties: chemProps,
-    dateRange: {
-      start: startDate,
-      end: endDate,
-    },
-  };
+    return {
+      transactions: transactions,
+      summary: summary,
+      chemicalProperties: chemProps,
+      dateRange: {
+        start: startDate,
+        end: endDate,
+      },
+    };
   } catch (error) {
     console.error("Error collecting report data:", error);
     throw error;
@@ -874,9 +900,9 @@ function extractBatchFromSelection(selection) {
 }
 
 /**
- * Gets chemical properties from CHEM_LIST sheet
+ * Gets chemical properties from CHEM_LIST sheet for reports
  */
-function getChemicalProperties(chemName, chemListSheet) {
+function getChemicalPropertiesForReports(chemName, chemListSheet) {
   const data = chemListSheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
@@ -1267,36 +1293,37 @@ function testReportGeneration() {
  */
 function debugSheetNames() {
   console.log("=== DEBUGGING SHEET NAMES ===");
-  
+
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
     const sheets = ss.getSheets();
-    
+
     console.log("Found", sheets.length, "sheets:");
     sheets.forEach((sheet, index) => {
       console.log(`${index + 1}. "${sheet.getName()}"`);
     });
-    
+
     console.log("\n=== CURRENT CONFIGURATION ===");
     console.log("FORM_RESPONSES:", `"${REPORTS_SHEET_NAMES.FORM_RESPONSES}"`);
     console.log("BATCHES:", `"${REPORTS_SHEET_NAMES.BATCHES}"`);
     console.log("CHEM_LIST:", `"${REPORTS_SHEET_NAMES.CHEM_LIST}"`);
     console.log("REPORTS:", `"${REPORTS_SHEET_NAMES.REPORTS}"`);
-    
+
     console.log("\n=== CHECKING MATCHES ===");
     const formSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.FORM_RESPONSES);
     console.log("Form Responses sheet found:", !!formSheet);
-    
+
     const batchesSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.BATCHES);
     console.log("BATCHES sheet found:", !!batchesSheet);
-    
+
     const chemListSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.CHEM_LIST);
     console.log("CHEM_LIST sheet found:", !!chemListSheet);
-    
+
     console.log("\n=== INSTRUCTIONS ===");
-    console.log("If any sheets show 'false', update the REPORTS_SHEET_NAMES constant");
+    console.log(
+      "If any sheets show 'false', update the REPORTS_SHEET_NAMES constant"
+    );
     console.log("to match your actual sheet names exactly (case-sensitive).");
-    
   } catch (error) {
     console.error("Error accessing spreadsheet:", error);
     console.log("Check your SPREADSHEET_ID_REPORTS constant");

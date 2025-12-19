@@ -634,9 +634,9 @@ function setupTestData() {
 }
 
 /**
- * Cleanup test data
+ * Cleanup test data from test suite
  */
-function cleanupTestData() {
+function cleanupTestSuiteData() {
   console.log("🧹 Cleaning up test data...");
 
   try {
@@ -831,7 +831,7 @@ function runIntegrationTest() {
 
     // Step 7: Cleanup
     integrationSteps.push({ step: "Cleanup", status: "Starting..." });
-    cleanupTestData();
+    cleanupTestSuiteData();
     integrationSteps[6].status = "Completed";
 
     console.log("\n✅ Integration test completed successfully!");
