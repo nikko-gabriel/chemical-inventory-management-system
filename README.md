@@ -1,6 +1,22 @@
 # Chemical Inventory Management System
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4.svg?logo=google&logoColor=white)](https://script.google.com/)
+[![Google Sheets](https://img.shields.io/badge/Google%20Sheets-34A853.svg?logo=google-sheets&logoColor=white)](https://sheets.google.com/)
+
 A comprehensive Google Sheets and Google Forms-based solution for managing chemical inventory transactions with automated processing and real-time updates.
+
+## Quick Start
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/chemical-inventory-management-system.git
+   cd chemical-inventory-management-system
+   ```
+
+2. **Follow the setup guide:** See [QUICK_START.md](QUICK_START.md) for detailed setup instructions
+
+3. **Deploy to Google Apps Script:** Copy the scripts from the `scripts/` folder to your Google Apps Script project
 
 ## Table of Contents
 

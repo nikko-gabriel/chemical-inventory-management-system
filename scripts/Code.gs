@@ -5,11 +5,14 @@
  * Version: 1.0
  * Author: Chemical Inventory System
  * Date: December 2025
+ * 
+ * GitHub: https://github.com/yourusername/chemical-inventory-management-system
  */
 
-// Configuration constants
-const FORM_ID = "18xl0TYI9pfV9IzuNfDxuT-cEf0KUFfTuNBf9HWUnxfY";
-const SPREADSHEET_ID = "1PH0WfiewO5pxwI50SpmEqSj5EqTU2G9T0LA6SmL-ir4";
+// Configuration - REPLACE WITH YOUR ACTUAL IDs
+// See config.template.js for configuration template
+const FORM_ID = "YOUR_FORM_ID_HERE"; // Replace with your Google Form ID
+const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID_HERE"; // Replace with your Google Spreadsheet ID
 
 // Sheet names
 const SHEET_NAMES = {
