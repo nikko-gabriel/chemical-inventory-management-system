@@ -372,9 +372,9 @@ function updateMasterlist() {
     const currentTotalFormula = `=D${rowNum}+E${rowNum}+F${rowNum}-G${rowNum}-H${rowNum}`;
     masterlistSheet.getRange(rowNum, 9).setFormula(currentTotalFormula); // Column I
 
-    // status formula: IF(current_total <= safety_lvl, "CRITICAL", "OK")
-    // Get safety level from CHEM_LIST for this chemical
-    const statusFormula = `=IF(I${rowNum}<=C${rowNum},"CRITICAL","OK")`;
+    // status formula: IF(current_total < safety_lvl, "CRITICAL", "OK")
+    // Use VLOOKUP to get safety level from CHEM_LIST for this chemical
+    const statusFormula = `=IF(I${rowNum}<VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK")`;
     masterlistSheet.getRange(rowNum, 10).setFormula(statusFormula); // Column J
   }
 
@@ -444,7 +444,7 @@ function syncChemListWithMasterlist() {
       const currentTotalFormula = `=D${lastRow}+E${lastRow}+F${lastRow}-G${lastRow}-H${lastRow}`;
       masterlistSheet.getRange(lastRow, 9).setFormula(currentTotalFormula); // Column I
 
-      const statusFormula = `=IF(I${lastRow}<=C${lastRow},"CRITICAL","OK")`;
+      const statusFormula = `=IF(I${lastRow}<VLOOKUP(A${lastRow},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK")`;
       masterlistSheet.getRange(lastRow, 10).setFormula(statusFormula); // Column J
     }
 
@@ -805,7 +805,7 @@ function cleanupTestData(options = {}) {
           const currentTotalFormula = `=D${rowNum}+E${rowNum}+F${rowNum}-G${rowNum}-H${rowNum}`;
           masterlistSheet.getRange(rowNum, 9).setFormula(currentTotalFormula); // current_total
 
-          const statusFormula = `=IF(I${rowNum}<=C${rowNum},"CRITICAL","OK")`;
+          const statusFormula = `=IF(I${rowNum}<VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK")`;
           masterlistSheet.getRange(rowNum, 10).setFormula(statusFormula); // status
         }
 

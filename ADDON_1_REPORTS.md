@@ -114,7 +114,7 @@ Generate reports directly from the REPORTS sheet interface:
 1. **Select Chemical**: Click dropdown in cell B4 → Choose your chemical
 2. **Enter Start Date**: Cell B5 → Type: `2025-12-01`
 3. **Enter End Date**: Cell B6 → Type: `2025-12-31`
-4. **Generate Report**: Cell C7 → Type: `GO` and press Enter
+4. **Generate Report**: Click the green **🔍 GENERATE REPORT** button in B7
 
 **The report appears automatically below!** ✨
 
@@ -125,8 +125,17 @@ Generate reports directly from the REPORTS sheet interface:
 1. Select Chemical:    [Sodium Chloride    ▼]
 2. Start Date:         [2025-12-01        ] (YYYY-MM-DD format)
 3. End Date:           [2025-12-31        ] (YYYY-MM-DD format)
-4. Generate Report:    Type 'GO' here → [    ]
+4. Generate Report:    [🔍 GENERATE REPORT ] ← Click this button!
+5. Start New Report:   [🔄 CLEAR FORM     ] ← Click to start over
 ```
+
+#### 🔄 **Starting a New Report:**
+
+After generating a report, simply click the orange **🔄 CLEAR FORM** button to:
+- Clear the chemical selection
+- Reset the date fields
+- Clear any previous report data
+- Show a ready-for-new-report message
 
 #### ⚡ **Quick Shortcuts:**
 
@@ -476,9 +485,9 @@ Reports are **manually generated** - they don't run automatically. This ensures:
 
 ## � Troubleshooting
 
-### **"GO" Button Not Working**
+### **Button Not Working**
 
-If typing "GO" in cell C7 doesn't generate a report:
+If clicking the "🔍 GENERATE REPORT" button doesn't generate a report:
 
 #### 1. **Check Trigger Setup**
 
@@ -503,13 +512,13 @@ function testReportsSetup() {
   });
 
   // Test manual trigger
-  console.log("Testing manual trigger...");
+  console.log("Testing manual button click...");
   try {
-    const e = {
-      range: reportsSheet.getRange(7, 3),
-      source: ss,
+    const mockEvent = {
+      range: reportsSheet.getRange(7, 2),
+      source: ss
     };
-    handleReportTrigger(e);
+    handleReportTrigger(mockEvent);
     console.log("Manual trigger test completed");
   } catch (error) {
     console.error("Manual trigger failed:", error);

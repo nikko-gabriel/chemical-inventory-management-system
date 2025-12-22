@@ -86,8 +86,26 @@ function setupReportsSheetHeaders(reportsSheet) {
 
   reportsSheet.getRange(7, 1).setValue("4. Generate Report:");
   reportsSheet.getRange(7, 1).setFontWeight("bold");
-  reportsSheet.getRange(7, 2).setValue("Type 'GO' here →");
-  reportsSheet.getRange(7, 2).setFontStyle("italic").setFontColor("#666666");
+  
+  // Create Generate Report button
+  reportsSheet.getRange(7, 2).setValue("🔍 GENERATE REPORT");
+  reportsSheet.getRange(7, 2)
+    .setBackground("#4CAF50")
+    .setFontColor("white")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setBorder(true, true, true, true, false, false);
+    
+  // Create Clear Form button
+  reportsSheet.getRange(8, 1).setValue("5. Start New Report:");
+  reportsSheet.getRange(8, 1).setFontWeight("bold");
+  reportsSheet.getRange(8, 2).setValue("🔄 CLEAR FORM");
+  reportsSheet.getRange(8, 2)
+    .setBackground("#FF9800")
+    .setFontColor("white")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setBorder(true, true, true, true, false, false);
 
   // Set up input cells with formatting
   reportsSheet
@@ -102,17 +120,13 @@ function setupReportsSheetHeaders(reportsSheet) {
     .getRange(6, 2)
     .setBackground("#f9f9f9")
     .setBorder(true, true, true, true, false, false);
-  reportsSheet
-    .getRange(7, 3)
-    .setBackground("#fff2cc")
-    .setBorder(true, true, true, true, false, false);
 
   // Example values and instructions
   reportsSheet.getRange(5, 2).setValue("2025-12-01");
   reportsSheet.getRange(6, 2).setValue("2025-12-31");
 
   // Separator
-  reportsSheet.getRange(9, 1, 1, 10).setBackground("#e0e0e0");
+  reportsSheet.getRange(10, 1, 1, 10).setBackground("#e0e0e0");
 
   // Set up chemical dropdown
   setupChemicalDropdown(reportsSheet);
@@ -182,13 +196,13 @@ function handleReportTrigger(e) {
     const row = range.getRow();
     const col = range.getColumn();
 
-    // Check if user typed 'GO' in the trigger cell (row 7, col 3)
-    if (row === 7 && col === 3) {
-      const triggerValue = range.getValue();
-
-      if (triggerValue && triggerValue.toString().toUpperCase() === "GO") {
-        // Clear the trigger cell
-        range.setValue("Generating...");
+    // Check if user clicked the Generate Report button (row 7, col 2)
+    if (row === 7 && col === 2) {
+      const buttonText = range.getValue();
+      if (buttonText && buttonText.toString().includes("GENERATE REPORT")) {
+        // Show processing state
+        range.setValue("⏳ GENERATING...");
+        range.setBackground("#9E9E9E");
 
         // Get input values
         const chemical = sheet.getRange(4, 2).getValue();
@@ -198,8 +212,17 @@ function handleReportTrigger(e) {
         // Generate report
         generateReportFromUI(chemical, startDate, endDate, sheet);
 
-        // Clear trigger cell
-        range.setValue("");
+        // Reset button
+        range.setValue("🔍 GENERATE REPORT");
+        range.setBackground("#4CAF50");
+      }
+    }
+    
+    // Check if user clicked the Clear Form button (row 8, col 2)
+    if (row === 8 && col === 2) {
+      const buttonText = range.getValue();
+      if (buttonText && buttonText.toString().includes("CLEAR FORM")) {
+        clearFormForNewReport(sheet);
       }
     }
   } catch (error) {
@@ -290,8 +313,8 @@ function generateReportFromUI(chemical, startDate, endDate, reportsSheet) {
     );
 
     // Show success message
-    reportsSheet.getRange(7, 2).setValue(`✅ Report generated successfully!`);
-    reportsSheet.getRange(7, 2).setFontColor("#008000").setFontStyle("italic");
+    reportsSheet.getRange(9, 1).setValue(`✅ Report generated successfully! Click 'CLEAR FORM' to generate another report.`);
+    reportsSheet.getRange(9, 1).setFontColor("#008000").setFontStyle("italic").setFontSize(11);
 
     console.log(`Report generated successfully for ${chemical}`);
   } catch (error) {
@@ -304,9 +327,39 @@ function generateReportFromUI(chemical, startDate, endDate, reportsSheet) {
  * Shows user-friendly error messages in the interface
  */
 function showUserError(reportsSheet, message) {
-  reportsSheet.getRange(7, 2).setValue(`❌ ${message}`);
-  reportsSheet.getRange(7, 2).setFontColor("#ff0000").setFontStyle("italic");
-  reportsSheet.getRange(7, 3).setValue("");
+  reportsSheet.getRange(9, 1).setValue(`❌ ${message}`);
+  reportsSheet.getRange(9, 1).setFontColor("#ff0000").setFontStyle("italic").setFontSize(11);
+}
+
+/**
+ * Clears the form for a new report
+ */
+function clearFormForNewReport(reportsSheet) {
+  try {
+    // Clear input fields
+    reportsSheet.getRange(4, 2).clearContent(); // Chemical
+    reportsSheet.getRange(5, 2).setValue("2025-12-01"); // Reset start date
+    reportsSheet.getRange(6, 2).setValue("2025-12-31"); // Reset end date
+    
+    // Clear any status messages
+    reportsSheet.getRange(9, 1).clearContent();
+    
+    // Clear the report area
+    clearReportArea(reportsSheet);
+    
+    // Show confirmation
+    reportsSheet.getRange(9, 1).setValue("✨ Form cleared! Ready for a new report.");
+    reportsSheet.getRange(9, 1).setFontColor("#4CAF50").setFontStyle("italic").setFontSize(11);
+    
+    // Auto-clear the confirmation message after a moment
+    Utilities.sleep(2000);
+    reportsSheet.getRange(9, 1).clearContent();
+    
+  } catch (error) {
+    console.error("Error clearing form:", error);
+    reportsSheet.getRange(9, 1).setValue("❌ Error clearing form. Please refresh the page.");
+    reportsSheet.getRange(9, 1).setFontColor("#ff0000").setFontStyle("italic");
+  }
 }
 
 /**
@@ -389,19 +442,18 @@ function generateChemicalReport(
 }
 
 /**
- * Clears the report area (below row 9) while preserving headers and interface
+ * Clears the report area (below row 10) while preserving headers and interface
  */
 function clearReportArea(reportsSheet) {
   const lastRow = reportsSheet.getLastRow();
   const lastCol = reportsSheet.getLastColumn();
 
-  if (lastRow > 9) {
-    reportsSheet.getRange(10, 1, lastRow - 9, Math.max(lastCol, 10)).clear();
+  if (lastRow > 10) {
+    reportsSheet.getRange(11, 1, lastRow - 10, Math.max(lastCol, 10)).clear();
   }
 
   // Also clear any status messages
-  reportsSheet.getRange(7, 2).setValue("Type 'GO' here →");
-  reportsSheet.getRange(7, 2).setFontColor("#666666").setFontStyle("italic");
+  reportsSheet.getRange(9, 1).clearContent();
 }
 
 /**
@@ -628,7 +680,7 @@ function writeReportToSheet(
   startDate,
   endDate
 ) {
-  let currentRow = 11; // Start below the user interface
+  let currentRow = 12; // Start below the user interface
 
   // Report title and metadata
   reportsSheet.getRange(currentRow, 1).setValue(`REPORT: ${chemicalName}`);
@@ -879,15 +931,15 @@ function formatReportSheet(reportsSheet, lastRow) {
     reportsSheet.autoResizeColumn(col);
   }
 
-  // Add borders to the report area (starting from row 11)
-  if (lastRow > 11) {
+  // Add borders to the report area (starting from row 12)
+  if (lastRow > 12) {
     reportsSheet
-      .getRange(11, 1, lastRow - 10, 10)
+      .getRange(12, 1, lastRow - 11, 10)
       .setBorder(true, true, true, true, true, true);
   }
 
   // Freeze the user interface area
-  reportsSheet.setFrozenRows(9);
+  reportsSheet.setFrozenRows(10);
 }
 
 /**
@@ -1117,7 +1169,8 @@ function exampleReportUsage() {
   console.log("   - Select chemical from dropdown in cell B4");
   console.log("   - Enter start date in cell B5 (YYYY-MM-DD)");
   console.log("   - Enter end date in cell B6 (YYYY-MM-DD)");
-  console.log("   - Type 'GO' in cell C7 to generate report");
+  console.log("   - Click 'GENERATE REPORT' button in cell B7");
+  console.log("   - Click 'CLEAR FORM' button to start a new report");
   console.log("");
 
   // Show available chemicals
@@ -1190,7 +1243,8 @@ function testReportsSetup() {
     console.log("B4 (Chemical):", reportsSheet.getRange(4, 2).getValue());
     console.log("B5 (Start Date):", reportsSheet.getRange(5, 2).getValue());
     console.log("B6 (End Date):", reportsSheet.getRange(6, 2).getValue());
-    console.log("C7 (Trigger Cell):", reportsSheet.getRange(7, 3).getValue());
+    console.log("B7 (Generate Button):", reportsSheet.getRange(7, 2).getValue());
+    console.log("B8 (Clear Button):", reportsSheet.getRange(8, 2).getValue());
 
     // Test chemical data
     console.log("\n=== CHECKING DATA ===");
@@ -1208,16 +1262,13 @@ function testReportsSetup() {
     // Test manual trigger simulation
     console.log("\n=== TESTING MANUAL TRIGGER ===");
     try {
-      // Simulate typing "GO" in C7
+      // Simulate clicking Generate Report button in B7
       const mockEvent = {
-        range: reportsSheet.getRange(7, 3),
+        range: reportsSheet.getRange(7, 2),
         source: ss,
       };
 
-      // Set a test value first
-      reportsSheet.getRange(7, 3).setValue("GO");
-
-      console.log("Simulating trigger with GO in C7...");
+      console.log("Simulating button click on Generate Report...");
       handleReportTrigger(mockEvent);
       console.log("✅ Manual trigger simulation completed");
     } catch (error) {
@@ -1226,10 +1277,10 @@ function testReportsSetup() {
     }
 
     console.log("\n=== TEST COMPLETE ===");
-    console.log("If manual trigger worked but typing GO doesn't:");
+    console.log("If manual trigger worked but clicking buttons doesn't:");
     console.log("1. Check that you have an onEdit trigger set up");
     console.log("2. Make sure trigger function is 'onEditReports'");
-    console.log("3. Try typing 'GO' in cell C7 again");
+    console.log("3. Try clicking the 'GENERATE REPORT' button again");
   } catch (error) {
     console.error("Test failed:", error);
     console.log("Check your SPREADSHEET_ID_REPORTS constant");
