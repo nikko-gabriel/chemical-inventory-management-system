@@ -86,26 +86,24 @@ function setupReportsSheetHeaders(reportsSheet) {
 
   reportsSheet.getRange(7, 1).setValue("4. Generate Report:");
   reportsSheet.getRange(7, 1).setFontWeight("bold");
-  
-  // Create Generate Report button
-  reportsSheet.getRange(7, 2).setValue("🔍 GENERATE REPORT");
-  reportsSheet.getRange(7, 2)
-    .setBackground("#4CAF50")
-    .setFontColor("white")
-    .setFontWeight("bold")
-    .setHorizontalAlignment("center")
-    .setBorder(true, true, true, true, false, false);
-    
-  // Create Clear Form button
-  reportsSheet.getRange(8, 1).setValue("5. Start New Report:");
+
+  // Instructions for button placement
+  reportsSheet.getRange(7, 2).setValue("👆 Use the GREEN BUTTON above");
+  reportsSheet.getRange(7, 2).setFontStyle("italic").setFontColor("#666666");
+
+  // Add instruction for creating the drawing button
+  reportsSheet.getRange(8, 1).setValue("📝 Instructions:");
   reportsSheet.getRange(8, 1).setFontWeight("bold");
-  reportsSheet.getRange(8, 2).setValue("🔄 CLEAR FORM");
-  reportsSheet.getRange(8, 2)
-    .setBackground("#FF9800")
-    .setFontColor("white")
-    .setFontWeight("bold")
-    .setHorizontalAlignment("center")
-    .setBorder(true, true, true, true, false, false);
+  reportsSheet
+    .getRange(8, 2)
+    .setValue(
+      "If no button above: Insert → Drawing → Create green button → Assign script: generateReportButton"
+    );
+  reportsSheet
+    .getRange(8, 2)
+    .setFontSize(10)
+    .setFontStyle("italic")
+    .setFontColor("#666666");
 
   // Set up input cells with formatting
   reportsSheet
@@ -180,119 +178,106 @@ function setupChemicalDropdown(reportsSheet) {
 }
 
 /**
- * Handles automatic report generation when user inputs are detected
- * This function is triggered by the onEdit event
+ * MAIN FUNCTION FOR DRAWING BUTTON
+ * This function is called when the user clicks the drawing button
+ * Assign this function name "generateReportButton" to your drawing button
  */
-function handleReportTrigger(e) {
-  try {
-    const sheet = e.source.getActiveSheet();
+function generateReportButton() {
+  console.log("🔘 Generate Report BUTTON CLICKED!");
 
-    // Only process if this is the REPORTS sheet
-    if (sheet.getName() !== REPORTS_SHEET_NAMES.REPORTS) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+
+    if (!reportsSheet) {
+      SpreadsheetApp.getUi().alert(
+        "Error",
+        "REPORTS sheet not found. Please run initializeReportsSheet() first.",
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
       return;
     }
 
-    const range = e.range;
-    const row = range.getRow();
-    const col = range.getColumn();
+    // Show immediate feedback to user
+    showUserMessage(
+      reportsSheet,
+      "⏳ Generating report... Please wait...",
+      "#FF9800"
+    );
 
-    // Check if user clicked the Generate Report button (row 7, col 2)
-    if (row === 7 && col === 2) {
-      const buttonText = range.getValue();
-      if (buttonText && buttonText.toString().includes("GENERATE REPORT")) {
-        // Show processing state
-        range.setValue("⏳ GENERATING...");
-        range.setBackground("#9E9E9E");
+    // Get input values from the sheet
+    const chemical = reportsSheet.getRange(4, 2).getValue();
+    const startDate = reportsSheet.getRange(5, 2).getValue();
+    const endDate = reportsSheet.getRange(6, 2).getValue();
 
-        // Get input values
-        const chemical = sheet.getRange(4, 2).getValue();
-        const startDate = sheet.getRange(5, 2).getValue();
-        const endDate = sheet.getRange(6, 2).getValue();
+    console.log(
+      `Inputs - Chemical: "${chemical}", Start: ${startDate}, End: ${endDate}`
+    );
 
-        // Generate report
-        generateReportFromUI(chemical, startDate, endDate, sheet);
-
-        // Reset button
-        range.setValue("🔍 GENERATE REPORT");
-        range.setBackground("#4CAF50");
-      }
-    }
-    
-    // Check if user clicked the Clear Form button (row 8, col 2)
-    if (row === 8 && col === 2) {
-      const buttonText = range.getValue();
-      if (buttonText && buttonText.toString().includes("CLEAR FORM")) {
-        clearFormForNewReport(sheet);
-      }
-    }
-  } catch (error) {
-    console.error("Error in report trigger handler:", error);
-    // Clear trigger cell on error
-    try {
-      e.source.getActiveSheet().getRange(7, 3).setValue("Error - try again");
-    } catch (clearError) {
-      console.error("Failed to clear trigger cell:", clearError);
-    }
-  }
-}
-
-/**
- * Generates report from user interface inputs with user-friendly error handling
- */
-function generateReportFromUI(chemical, startDate, endDate, reportsSheet) {
-  try {
-    // Validate inputs
+    // Validate inputs with user-friendly messages
     if (!chemical || chemical.toString().trim() === "") {
-      showUserError(reportsSheet, "Please select a chemical from the dropdown");
+      showUserMessage(
+        reportsSheet,
+        "❌ Please select a chemical from the dropdown in cell B4",
+        "#f44336"
+      );
+      SpreadsheetApp.getUi().alert(
+        "Missing Chemical",
+        "Please select a chemical from the dropdown in cell B4 first.",
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
       return;
     }
 
     if (!startDate || !endDate) {
-      showUserError(reportsSheet, "Please enter both start and end dates");
+      showUserMessage(
+        reportsSheet,
+        "❌ Please enter both start and end dates (B5 and B6)",
+        "#f44336"
+      );
+      SpreadsheetApp.getUi().alert(
+        "Missing Dates",
+        "Please enter both start and end dates in cells B5 and B6.\n\nFormat: YYYY-MM-DD (e.g., 2025-12-01)",
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
       return;
     }
 
-    // Convert dates
+    // Convert and validate dates
     let reportStartDate, reportEndDate;
 
-    if (startDate instanceof Date) {
-      reportStartDate = startDate;
-    } else {
-      reportStartDate = new Date(startDate);
-    }
+    try {
+      reportStartDate =
+        startDate instanceof Date ? startDate : new Date(startDate);
+      reportEndDate = endDate instanceof Date ? endDate : new Date(endDate);
 
-    if (endDate instanceof Date) {
-      reportEndDate = endDate;
-    } else {
-      reportEndDate = new Date(endDate);
-    }
+      if (isNaN(reportStartDate) || isNaN(reportEndDate)) {
+        throw new Error("Invalid date format");
+      }
 
-    // Validate dates
-    if (isNaN(reportStartDate) || isNaN(reportEndDate)) {
-      showUserError(
+      if (reportStartDate > reportEndDate) {
+        throw new Error("Start date must be before end date");
+      }
+    } catch (dateError) {
+      showUserMessage(
         reportsSheet,
-        "Invalid date format. Please use YYYY-MM-DD (e.g., 2025-12-01)"
+        "❌ Invalid date format. Use YYYY-MM-DD (e.g., 2025-12-01)",
+        "#f44336"
+      );
+      SpreadsheetApp.getUi().alert(
+        "Invalid Date Format",
+        "Please use YYYY-MM-DD format for dates.\n\nExamples:\n• 2025-12-01\n• 2025-12-31\n\nAlso make sure start date is before end date.",
+        SpreadsheetApp.getUi().ButtonSet.OK
       );
       return;
     }
 
-    if (reportStartDate > reportEndDate) {
-      showUserError(
-        reportsSheet,
-        "Start date must be before or equal to end date"
-      );
-      return;
-    }
-
-    // Clear previous report
+    // Clear previous report and generate new one
     clearReportArea(reportsSheet);
 
-    // Show progress message
-    reportsSheet.getRange(11, 1).setValue("🔄 Generating report...");
-    reportsSheet.getRange(11, 1).setFontStyle("italic");
+    console.log("✅ Inputs validated, generating report...");
 
     // Generate the report
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
     const reportData = collectReportData(
       chemical,
       reportStartDate,
@@ -300,10 +285,7 @@ function generateReportFromUI(chemical, startDate, endDate, reportsSheet) {
       ss
     );
 
-    // Clear progress message
-    reportsSheet.getRange(11, 1).setValue("");
-
-    // Write report
+    // Write report to sheet
     writeReportToSheet(
       reportsSheet,
       reportData,
@@ -313,53 +295,124 @@ function generateReportFromUI(chemical, startDate, endDate, reportsSheet) {
     );
 
     // Show success message
-    reportsSheet.getRange(9, 1).setValue(`✅ Report generated successfully! Click 'CLEAR FORM' to generate another report.`);
-    reportsSheet.getRange(9, 1).setFontColor("#008000").setFontStyle("italic").setFontSize(11);
+    const transactionCount = reportData.transactions.length;
+    const successMessage = `✅ Report generated! Found ${transactionCount} transactions for ${chemical} (${reportStartDate.toLocaleDateString()} to ${reportEndDate.toLocaleDateString()})`;
 
-    console.log(`Report generated successfully for ${chemical}`);
+    showUserMessage(reportsSheet, successMessage, "#4CAF50");
+
+    // Show success popup
+    SpreadsheetApp.getUi().alert(
+      "Report Generated Successfully!",
+      `Report for ${chemical} has been generated.\n\nFound ${transactionCount} transactions from ${reportStartDate.toLocaleDateString()} to ${reportEndDate.toLocaleDateString()}\n\nScroll down to see the detailed report.`,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+
+    console.log(
+      `✅ Report generated successfully for ${chemical} with ${transactionCount} transactions`
+    );
   } catch (error) {
-    console.error("Error generating report from UI:", error);
-    showUserError(reportsSheet, `Error: ${error.message}`);
+    console.error("❌ Error in generateReportButton:", error);
+
+    const errorMessage = `❌ Error: ${error.message}`;
+
+    try {
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+      const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+      if (reportsSheet) {
+        showUserMessage(reportsSheet, errorMessage, "#f44336");
+      }
+    } catch (displayError) {
+      console.error("Could not display error in sheet:", displayError);
+    }
+
+    // Show error popup
+    SpreadsheetApp.getUi().alert(
+      "Error Generating Report",
+      `There was an error generating the report:\n\n${error.message}\n\nPlease check:\n• Chemical is selected\n• Dates are in YYYY-MM-DD format\n• You have transaction data\n• All required sheets exist`,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Helper function to show user messages in the interface
+ */
+function showUserMessage(reportsSheet, message, color) {
+  try {
+    reportsSheet.getRange(9, 1, 1, 6).merge();
+    reportsSheet.getRange(9, 1).setValue(message);
+    reportsSheet
+      .getRange(9, 1)
+      .setFontColor(color)
+      .setFontWeight("bold")
+      .setFontSize(11)
+      .setBackground("#f8f9fa")
+      .setHorizontalAlignment("center");
+
+    SpreadsheetApp.flush(); // Force immediate display
+  } catch (error) {
+    console.error("Error showing user message:", error);
+  }
+}
+
+/**
+ * Function to clear the form and start fresh
+ * Can be called manually or assigned to another drawing button if needed
+ */
+function clearReportForm() {
+  try {
+    console.log("Clearing report form...");
+
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+
+    if (!reportsSheet) {
+      SpreadsheetApp.getUi().alert(
+        "Error",
+        "REPORTS sheet not found.",
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+
+    // Clear input fields
+    reportsSheet.getRange(4, 2).clearContent(); // Chemical
+    reportsSheet.getRange(5, 2).setValue("2025-12-01"); // Reset start date
+    reportsSheet.getRange(6, 2).setValue("2025-12-31"); // Reset end date
+
+    // Clear the report area
+    clearReportArea(reportsSheet);
+
+    // Show confirmation
+    showUserMessage(
+      reportsSheet,
+      "✨ Form cleared! Ready for a new report.",
+      "#4CAF50"
+    );
+
+    SpreadsheetApp.getUi().alert(
+      "Form Cleared",
+      "The form has been cleared and is ready for a new report.\n\nPlease select a chemical and date range, then click the Generate Report button.",
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+
+    console.log("✅ Form cleared successfully");
+  } catch (error) {
+    console.error("Error clearing form:", error);
+    SpreadsheetApp.getUi().alert(
+      "Error",
+      `Error clearing form: ${error.message}`,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
   }
 }
 
 /**
  * Shows user-friendly error messages in the interface
+ * Updated to work with new message system
  */
 function showUserError(reportsSheet, message) {
-  reportsSheet.getRange(9, 1).setValue(`❌ ${message}`);
-  reportsSheet.getRange(9, 1).setFontColor("#ff0000").setFontStyle("italic").setFontSize(11);
-}
-
-/**
- * Clears the form for a new report
- */
-function clearFormForNewReport(reportsSheet) {
-  try {
-    // Clear input fields
-    reportsSheet.getRange(4, 2).clearContent(); // Chemical
-    reportsSheet.getRange(5, 2).setValue("2025-12-01"); // Reset start date
-    reportsSheet.getRange(6, 2).setValue("2025-12-31"); // Reset end date
-    
-    // Clear any status messages
-    reportsSheet.getRange(9, 1).clearContent();
-    
-    // Clear the report area
-    clearReportArea(reportsSheet);
-    
-    // Show confirmation
-    reportsSheet.getRange(9, 1).setValue("✨ Form cleared! Ready for a new report.");
-    reportsSheet.getRange(9, 1).setFontColor("#4CAF50").setFontStyle("italic").setFontSize(11);
-    
-    // Auto-clear the confirmation message after a moment
-    Utilities.sleep(2000);
-    reportsSheet.getRange(9, 1).clearContent();
-    
-  } catch (error) {
-    console.error("Error clearing form:", error);
-    reportsSheet.getRange(9, 1).setValue("❌ Error clearing form. Please refresh the page.");
-    reportsSheet.getRange(9, 1).setFontColor("#ff0000").setFontStyle("italic");
-  }
+  showUserMessage(reportsSheet, `❌ ${message}`, "#f44336");
 }
 
 /**
@@ -1025,6 +1078,59 @@ function getChemicalsWithTransactions() {
 }
 
 /**
+ * Handles edit events on the REPORTS sheet to process button clicks and form interactions
+ * @param {Event} e - Edit event object
+ */
+function handleReportTrigger(e) {
+  try {
+    const range = e.range;
+    const sheet = range.getSheet();
+    const row = range.getRow();
+    const col = range.getColumn();
+    const editedValue = range.getValue();
+
+    // Only process events on REPORTS sheet
+    if (sheet.getName() !== REPORTS_SHEET_NAMES.REPORTS) {
+      return;
+    }
+
+    console.log(`REPORTS sheet edited at ${row},${col}: "${editedValue}"`);
+
+    // Handle Generate Report button (assuming it's at B7)
+    if (row === 7 && col === 2 && editedValue === "Generate Report") {
+      console.log("Generate Report button clicked");
+      generateReportButton();
+
+      // Clear the button text after processing
+      range.setValue("");
+    }
+
+    // Handle Clear Report button (assuming it's at B8)
+    else if (row === 8 && col === 2 && editedValue === "Clear Report") {
+      console.log("Clear Report button clicked");
+      clearReportForm();
+
+      // Clear the button text after processing
+      range.setValue("");
+    }
+  } catch (error) {
+    console.error("Error in handleReportTrigger:", error);
+
+    // Try to show error in sheet if possible
+    try {
+      if (
+        e.range &&
+        e.range.getSheet().getName() === REPORTS_SHEET_NAMES.REPORTS
+      ) {
+        showUserError(e.range.getSheet(), `Error: ${error.message}`);
+      }
+    } catch (innerError) {
+      console.error("Could not show error message in sheet:", innerError);
+    }
+  }
+}
+
+/**
  * Main onEdit trigger for the reports system
  * Add this function to your existing onEdit trigger in Code.gs, or create a new trigger
  */
@@ -1243,7 +1349,10 @@ function testReportsSetup() {
     console.log("B4 (Chemical):", reportsSheet.getRange(4, 2).getValue());
     console.log("B5 (Start Date):", reportsSheet.getRange(5, 2).getValue());
     console.log("B6 (End Date):", reportsSheet.getRange(6, 2).getValue());
-    console.log("B7 (Generate Button):", reportsSheet.getRange(7, 2).getValue());
+    console.log(
+      "B7 (Generate Button):",
+      reportsSheet.getRange(7, 2).getValue()
+    );
     console.log("B8 (Clear Button):", reportsSheet.getRange(8, 2).getValue());
 
     // Test chemical data
@@ -1339,6 +1448,66 @@ function testReportGeneration() {
 }
 
 /**
+ * Test function to manually simulate button clicks
+ * Run this if buttons aren't working
+ */
+function testButtonClicks() {
+  console.log("=== TESTING BUTTON FUNCTIONALITY ===");
+
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const reportsSheet = ss.getSheetByName(REPORTS_SHEET_NAMES.REPORTS);
+
+    if (!reportsSheet) {
+      console.log("❌ REPORTS sheet not found");
+      return;
+    }
+
+    console.log("✅ REPORTS sheet found");
+
+    // Test Generate Report button simulation
+    console.log("\n=== TESTING GENERATE REPORT BUTTON ===");
+
+    // Set some test data
+    const chemicals = getChemicalsWithTransactions();
+    if (chemicals.length > 0) {
+      reportsSheet.getRange(4, 2).setValue(chemicals[0]);
+      reportsSheet.getRange(5, 2).setValue("2025-12-01");
+      reportsSheet.getRange(6, 2).setValue("2025-12-22");
+      console.log(`Set test data: ${chemicals[0]}, 2025-12-01 to 2025-12-22`);
+    }
+
+    // Simulate button click
+    const mockEvent = {
+      source: ss,
+      range: reportsSheet.getRange(7, 2),
+    };
+
+    console.log("Simulating Generate Report button click...");
+    handleReportTrigger(mockEvent);
+    console.log("✅ Generate Report simulation completed");
+
+    // Test Clear Form button
+    console.log("\n=== TESTING CLEAR FORM BUTTON ===");
+    const clearEvent = {
+      source: ss,
+      range: reportsSheet.getRange(8, 2),
+    };
+
+    console.log("Simulating Clear Form button click...");
+    handleReportTrigger(clearEvent);
+    console.log("✅ Clear Form simulation completed");
+
+    console.log("\n=== TEST COMPLETE ===");
+    console.log(
+      "If this worked, but clicking doesn't, check your onEdit trigger!"
+    );
+  } catch (error) {
+    console.error("❌ Test failed:", error);
+  }
+}
+
+/**
  * Helper function to identify actual sheet names in your spreadsheet
  * Run this if you get "sheet not found" errors
  */
@@ -1378,5 +1547,145 @@ function debugSheetNames() {
   } catch (error) {
     console.error("Error accessing spreadsheet:", error);
     console.log("Check your SPREADSHEET_ID_REPORTS constant");
+  }
+}
+
+/**
+ * Quick function to check trigger setup and test buttons
+ * Run this first if buttons aren't working
+ */
+function quickTriggerCheck() {
+  console.log("=== QUICK TRIGGER CHECK ===");
+
+  // Check triggers
+  const triggers = ScriptApp.getProjectTriggers();
+  console.log(`Found ${triggers.length} triggers total`);
+
+  let hasReportsTrigger = false;
+  triggers.forEach((trigger, index) => {
+    console.log(
+      `${
+        index + 1
+      }. Function: ${trigger.getHandlerFunction()}, Event: ${trigger.getEventType()}`
+    );
+    if (trigger.getHandlerFunction() === "onEditReports") {
+      hasReportsTrigger = true;
+      console.log("  ✅ Reports trigger found!");
+    }
+  });
+
+  if (!hasReportsTrigger) {
+    console.log("❌ NO 'onEditReports' TRIGGER FOUND!");
+    console.log("SOLUTION:");
+    console.log("1. Go to Apps Script → Triggers");
+    console.log("2. Add Trigger");
+    console.log("3. Function: onEditReports");
+    console.log("4. Event source: From spreadsheet");
+    console.log("5. Event type: On edit");
+    console.log("6. Save");
+    return false;
+  }
+
+  console.log("✅ Trigger setup looks good!");
+  console.log("Now testing buttons...");
+
+  // Test the buttons
+  testButtonClicks();
+
+  return true;
+}
+
+/**
+ * ULTIMATE DEBUGGING FUNCTION
+ * Run this if buttons aren't working at all
+ */
+function ultimateButtonDebug() {
+  console.log("=== ULTIMATE BUTTON DEBUG ===");
+
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID_REPORTS);
+    const sheet = ss.getSheetByName("REPORTS");
+
+    if (!sheet) {
+      console.log("❌ REPORTS sheet not found!");
+      console.log(
+        "Available sheets:",
+        ss.getSheets().map((s) => s.getName())
+      );
+      return;
+    }
+
+    console.log("✅ REPORTS sheet found");
+
+    // Check button cells
+    const generateButton = sheet.getRange(7, 2);
+    const clearButton = sheet.getRange(8, 2);
+
+    console.log("\n=== BUTTON STATE ===");
+    console.log("Generate button value:", `"${generateButton.getValue()}"`);
+    console.log(
+      "Generate button display:",
+      `"${generateButton.getDisplayValue()}"`
+    );
+    console.log("Generate button background:", generateButton.getBackground());
+
+    console.log("Clear button value:", `"${clearButton.getValue()}"`);
+    console.log("Clear button display:", `"${clearButton.getDisplayValue()}"`);
+    console.log("Clear button background:", clearButton.getBackground());
+
+    // Test if buttons are properly formatted
+    console.log("\n=== FIXING BUTTON FORMAT ===");
+
+    // Fix Generate button
+    generateButton.setValue("🔍 GENERATE REPORT");
+    generateButton.setBackground("#4CAF50");
+    generateButton.setFontColor("white");
+    generateButton.setFontWeight("bold");
+    generateButton.setBorder(
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      "#2E7D32",
+      SpreadsheetApp.BorderStyle.SOLID_MEDIUM
+    );
+
+    // Fix Clear button
+    clearButton.setValue("🔄 CLEAR FORM");
+    clearButton.setBackground("#FF9800");
+    clearButton.setFontColor("white");
+    clearButton.setFontWeight("bold");
+    clearButton.setBorder(
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      "#F57C00",
+      SpreadsheetApp.BorderStyle.SOLID_MEDIUM
+    );
+
+    SpreadsheetApp.flush();
+
+    console.log("✅ Buttons reformatted!");
+
+    // Test manual trigger
+    console.log("\n=== TESTING MANUAL TRIGGER ===");
+
+    // Create fake event for generate button
+    const fakeEvent = {
+      range: generateButton,
+      source: ss,
+    };
+
+    console.log("Testing handleReportTrigger with fake event...");
+    handleReportTrigger(fakeEvent);
+
+    console.log("✅ Manual trigger test completed!");
+  } catch (error) {
+    console.error("❌ Ultimate debug failed:", error);
   }
 }

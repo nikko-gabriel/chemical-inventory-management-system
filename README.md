@@ -44,13 +44,15 @@ The Chemical Inventory Management System automates the tracking of chemical inve
 ### Key Features
 
 - ✅ Automated inventory tracking (IN/OUT transactions)
-- ✅ Batch/lot number management with automatic uniqueness
+- ✅ **Enhanced Batch/lot number management** with support for all formats (numeric, alphanumeric, special characters)
+- ✅ **Robust Type Handling** - Fixed Google Sheets number vs string comparison issues
 - ✅ Dynamic form dropdowns based on current data
 - ✅ Automatic safety level monitoring with CRITICAL alerts
 - ✅ Real-time masterlist calculations
-- ✅ Data validation and error handling
+- ✅ **Comprehensive Data Validation** with debug-friendly error reporting
 - ✅ Supplier and brand management
 - ✅ Location-based storage tracking
+- ✅ **Professional Reports Add-on** with drawing button interface
 
 ## Prerequisites
 

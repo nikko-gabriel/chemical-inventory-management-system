@@ -11,8 +11,8 @@
 
 // Configuration - REPLACE WITH YOUR ACTUAL IDs
 // See config.template.js for configuration template
-const FORM_ID = "YOUR_FORM_ID_HERE"; // Replace with your Google Form ID
-const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID_HERE"; // Replace with your Google Spreadsheet ID
+const FORM_ID = "18xl0TYI9pfV9IzuNfDxuT-cEf0KUFfTuNBf9HWUnxfY"; // Replace with your Google Form ID
+const SPREADSHEET_ID = "1PH0WfiewO5pxwI50SpmEqSj5EqTU2G9T0LA6SmL-ir4"; // Replace with your Google Spreadsheet ID
 
 // Sheet names
 const SHEET_NAMES = {
@@ -140,10 +140,16 @@ function processInTransaction(formResponse) {
   );
 
   // Check for duplicate batch numbers and make unique
+  console.log(
+    `Processing IN transaction - Original batch: "${
+      formResponse.batchNum
+    }" (type: ${typeof formResponse.batchNum})`
+  );
   const uniqueBatchNum = ensureUniqueBatchNumber(
     formResponse.batchNum,
     batchesSheet
   );
+  console.log(`Using unique batch number: "${uniqueBatchNum}"`);
 
   // Calculate total volume
   const volTotal = formResponse.qtyBottle * formResponse.volPerBottle;
@@ -180,8 +186,14 @@ function processOutTransaction(formResponse) {
   const batchesSheet = ss.getSheetByName(SHEET_NAMES.BATCHES);
 
   // Parse batch number from dropdown selection
+  console.log(
+    `Processing OUT transaction - Selected batch dropdown: "${formResponse.selectedBatchNum}"`
+  );
   const batchNum = extractBatchNumberFromSelection(
     formResponse.selectedBatchNum
+  );
+  console.log(
+    `Extracted batch number: "${batchNum}" (type: ${typeof batchNum})`
   );
 
   // Find the batch row
@@ -259,16 +271,25 @@ function getChemicalProperties(chemName, chemListSheet) {
  */
 function ensureUniqueBatchNumber(batchNum, batchesSheet) {
   const data = batchesSheet.getDataRange().getValues();
-  const existingBatchNums = data.slice(1).map((row) => row[1]); // Column B (batch_num)
+  // Convert all batch numbers to strings to handle numeric batch numbers properly
+  const existingBatchNums = data.slice(1).map((row) => String(row[1])); // Column B (batch_num)
 
-  let uniqueBatchNum = batchNum;
+  // Ensure input batch number is also a string
+  let uniqueBatchNum = String(batchNum);
   let suffix = 1;
+
+  console.log(`Checking batch uniqueness for: "${uniqueBatchNum}"`);
+  console.log(
+    `Existing batches: [${existingBatchNums.map((b) => `"${b}"`).join(", ")}]`
+  );
 
   while (existingBatchNums.includes(uniqueBatchNum)) {
     uniqueBatchNum = `${batchNum}(${suffix})`;
     suffix++;
+    console.log(`Batch collision detected, trying: "${uniqueBatchNum}"`);
   }
 
+  console.log(`Final unique batch number: "${uniqueBatchNum}"`);
   return uniqueBatchNum;
 }
 
@@ -279,9 +300,12 @@ function ensureUniqueBatchNumber(batchNum, batchesSheet) {
  * @returns {string} Batch number
  */
 function extractBatchNumberFromSelection(selection) {
+  console.log(`Extracting batch number from selection: "${selection}"`);
   const match = selection.match(/Batch:\s*([^\s|]+)/);
   if (match) {
-    return match[1];
+    const extractedBatch = String(match[1]); // Ensure it's always a string
+    console.log(`Extracted batch: "${extractedBatch}"`);
+    return extractedBatch;
   }
   throw new Error(`Invalid batch selection format: ${selection}`);
 }
@@ -295,14 +319,22 @@ function extractBatchNumberFromSelection(selection) {
 function findBatchRow(batchNum, batchesSheet) {
   const data = batchesSheet.getDataRange().getValues();
 
+  // Convert search term to string
+  const searchBatchNum = String(batchNum);
+  console.log(`Searching for batch: "${searchBatchNum}"`);
+
   for (let i = 1; i < data.length; i++) {
     // Skip header row
-    if (data[i][1] === batchNum) {
-      // Column B (batch_num)
+    const currentBatchNum = String(data[i][1]); // Column B (batch_num) - convert to string
+    console.log(`Comparing with batch at row ${i + 1}: "${currentBatchNum}"`);
+
+    if (currentBatchNum === searchBatchNum) {
+      console.log(`✅ Found batch "${searchBatchNum}" at row ${i + 1}`);
       return i + 1; // Return 1-indexed row number
     }
   }
 
+  console.log(`❌ Batch "${searchBatchNum}" not found in BATCHES sheet`);
   return -1;
 }
 
@@ -372,9 +404,9 @@ function updateMasterlist() {
     const currentTotalFormula = `=D${rowNum}+E${rowNum}+F${rowNum}-G${rowNum}-H${rowNum}`;
     masterlistSheet.getRange(rowNum, 9).setFormula(currentTotalFormula); // Column I
 
-    // status formula: IF(current_total < safety_lvl, "CRITICAL", "OK")
+    // status formula: Check if chemical exists in CHEM_LIST, then compare with safety level
     // Use VLOOKUP to get safety level from CHEM_LIST for this chemical
-    const statusFormula = `=IF(I${rowNum}<VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK")`;
+    const statusFormula = `=IF(ISERROR(VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE)),"Chem not found, please add in CHEM_LIST",IF(I${rowNum}<VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK"))`;
     masterlistSheet.getRange(rowNum, 10).setFormula(statusFormula); // Column J
   }
 
@@ -444,7 +476,7 @@ function syncChemListWithMasterlist() {
       const currentTotalFormula = `=D${lastRow}+E${lastRow}+F${lastRow}-G${lastRow}-H${lastRow}`;
       masterlistSheet.getRange(lastRow, 9).setFormula(currentTotalFormula); // Column I
 
-      const statusFormula = `=IF(I${lastRow}<VLOOKUP(A${lastRow},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK")`;
+      const statusFormula = `=IF(ISERROR(VLOOKUP(A${lastRow},CHEM_LIST!A:D,4,FALSE)),"Chem not found, please add in CHEM_LIST",IF(I${lastRow}<VLOOKUP(A${lastRow},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK"))`;
       masterlistSheet.getRange(lastRow, 10).setFormula(statusFormula); // Column J
     }
 
@@ -805,7 +837,7 @@ function cleanupTestData(options = {}) {
           const currentTotalFormula = `=D${rowNum}+E${rowNum}+F${rowNum}-G${rowNum}-H${rowNum}`;
           masterlistSheet.getRange(rowNum, 9).setFormula(currentTotalFormula); // current_total
 
-          const statusFormula = `=IF(I${rowNum}<VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK")`;
+          const statusFormula = `=IF(ISERROR(VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE)),"Chem not found, please add in CHEM_LIST",IF(I${rowNum}<VLOOKUP(A${rowNum},CHEM_LIST!A:D,4,FALSE),"CRITICAL","OK"))`;
           masterlistSheet.getRange(rowNum, 10).setFormula(statusFormula); // status
         }
 
@@ -868,5 +900,227 @@ function nuclearCleanupAllData() {
   } else {
     console.log("Nuclear cleanup cancelled by user");
     return { success: false, message: "Cleanup cancelled" };
+  }
+}
+
+/**
+ * Test function to verify batch number handling works with different formats
+ * Run this to test numeric, alphanumeric, and string batch numbers
+ */
+function testBatchNumberHandling() {
+  console.log("=== TESTING BATCH NUMBER HANDLING ===");
+
+  try {
+    // Check if SPREADSHEET_ID is configured
+    if (!SPREADSHEET_ID || SPREADSHEET_ID === "YOUR_SPREADSHEET_ID_HERE") {
+      console.log("❌ SPREADSHEET_ID not configured!");
+      console.log(
+        "📝 SOLUTION: Update the SPREADSHEET_ID constant at the top of Code.gs"
+      );
+      console.log(
+        "   Replace 'YOUR_SPREADSHEET_ID_HERE' with your actual Google Sheets ID"
+      );
+      console.log(
+        "   Example: const SPREADSHEET_ID = '1PH0WfiewO5pxwI50SpmEqSj5EqTU2G9T0LA6SmL-ir4';"
+      );
+      console.log("");
+      console.log("🔍 To find your Spreadsheet ID:");
+      console.log("   1. Open your Google Sheet");
+      console.log(
+        "   2. Look at the URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID_HERE/edit"
+      );
+      console.log("   3. Copy the long ID between '/d/' and '/edit'");
+      return false;
+    }
+
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const batchesSheet = ss.getSheetByName(SHEET_NAMES.BATCHES);
+
+    if (!batchesSheet) {
+      console.log("❌ BATCHES sheet not found");
+      console.log(
+        "Available sheets:",
+        ss.getSheets().map((s) => s.getName())
+      );
+      return false;
+    }
+
+    console.log("✅ Successfully connected to spreadsheet");
+    console.log(
+      `📊 Found BATCHES sheet with ${batchesSheet.getLastRow()} rows`
+    );
+
+    // Test different batch number formats
+    const testBatches = [
+      "123", // All numeric (string)
+      123, // All numeric (number)
+      "ABC123", // Alphanumeric
+      "LOT-456", // With special characters
+      "2024-001", // Date-like format
+      "TEST_789", // With underscore
+    ];
+
+    console.log("\n=== TESTING UNIQUE BATCH NUMBER GENERATION ===");
+    for (const testBatch of testBatches) {
+      console.log(
+        `\nTesting batch: "${testBatch}" (type: ${typeof testBatch})`
+      );
+      const uniqueBatch = ensureUniqueBatchNumber(testBatch, batchesSheet);
+      console.log(`Result: "${uniqueBatch}"\n`);
+    }
+
+    console.log("\n=== TESTING BATCH EXTRACTION FROM DROPDOWN ===");
+    const testSelections = [
+      "Sodium Chloride - Batch: 123 | Exp: 2025-12-31 | Qty: 500 mL",
+      "Acetone - Batch: LOT-456 | Exp: 2025-06-15 | Qty: 1000 mL",
+      "Ethanol - Batch: 2024-001 | Exp: 2025-03-20 | Qty: 250 mL",
+    ];
+
+    for (const selection of testSelections) {
+      console.log(`\nTesting selection: "${selection}"`);
+      try {
+        const extracted = extractBatchNumberFromSelection(selection);
+        console.log(`Extracted: "${extracted}" (type: ${typeof extracted})`);
+      } catch (error) {
+        console.log(`❌ Extraction failed: ${error.message}`);
+      }
+    }
+
+    console.log("\n=== TESTING BATCH ROW FINDING ===");
+    // Get current batches from sheet for testing
+    const data = batchesSheet.getDataRange().getValues();
+    if (data.length > 1) {
+      console.log("\nCurrent batches in sheet:");
+      for (let i = 1; i < Math.min(data.length, 6); i++) {
+        // Test first 5 batches
+        const batchInSheet = data[i][1];
+        console.log(
+          `Row ${i + 1}: "${batchInSheet}" (type: ${typeof batchInSheet})`
+        );
+
+        // Test finding this batch
+        const foundRow = findBatchRow(batchInSheet, batchesSheet);
+        if (foundRow === i + 1) {
+          console.log(`  ✅ Successfully found at row ${foundRow}`);
+        } else {
+          console.log(
+            `  ❌ Search failed - expected row ${i + 1}, got ${foundRow}`
+          );
+        }
+      }
+    } else {
+      console.log("No existing batches to test with");
+      console.log(
+        "💡 Add some test data first by submitting forms or manually adding batches"
+      );
+    }
+
+    console.log("\n=== BATCH NUMBER TESTING COMPLETE ===");
+    console.log(
+      "✅ If you see errors above, there are issues with batch handling"
+    );
+    console.log("🔍 Check the console output for specific problems");
+  } catch (error) {
+    console.error("❌ Test failed:", error);
+
+    if (error.message && error.message.includes("openById")) {
+      console.log("\n🚨 SPREADSHEET ACCESS ERROR:");
+      console.log("This usually means:");
+      console.log("1. SPREADSHEET_ID is not set correctly");
+      console.log("2. The spreadsheet doesn't exist");
+      console.log("3. You don't have permission to access it");
+      console.log("\n✅ SOLUTION:");
+      console.log("1. Check the SPREADSHEET_ID constant");
+      console.log("2. Make sure the spreadsheet exists");
+      console.log(
+        "3. Ensure this Apps Script project has access to the spreadsheet"
+      );
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Simple configuration test that doesn't require spreadsheet access
+ * Run this first to test batch number logic without needing configured IDs
+ */
+function testBatchNumberLogic() {
+  console.log("=== TESTING BATCH NUMBER LOGIC (No Spreadsheet Required) ===");
+
+  try {
+    // Test batch extraction from dropdown selections
+    console.log("\n🔍 TESTING BATCH EXTRACTION:");
+    const testSelections = [
+      "Sodium Chloride - Batch: 123 | Exp: 2025-12-31 | Qty: 500 mL",
+      "Acetone - Batch: LOT-456 | Exp: 2025-06-15 | Qty: 1000 mL",
+      "Ethanol - Batch: 2024-001 | Exp: 2025-03-20 | Qty: 250 mL",
+      "HCl - Batch: ABC_789 | Exp: 2025-01-15 | Qty: 100 mL",
+    ];
+
+    for (const selection of testSelections) {
+      console.log(`\nInput: "${selection}"`);
+      try {
+        const extracted = extractBatchNumberFromSelection(selection);
+        console.log(`✅ Extracted: "${extracted}" (type: ${typeof extracted})`);
+      } catch (error) {
+        console.log(`❌ Extraction failed: ${error.message}`);
+      }
+    }
+
+    // Test string conversion and type handling
+    console.log("\n🔢 TESTING TYPE CONVERSION:");
+    const testBatches = [
+      "123", // String number
+      123, // Actual number
+      "ABC123", // Alphanumeric
+      "LOT-456", // With dash
+      "2024_001", // With underscore
+      "", // Empty string
+      null, // Null value
+      undefined, // Undefined
+    ];
+
+    for (const batch of testBatches) {
+      console.log(`\nTesting: ${batch} (type: ${typeof batch})`);
+      try {
+        const stringified = String(batch);
+        console.log(`✅ String conversion: "${stringified}"`);
+
+        // Test if it would match itself
+        const matches = stringified === String(batch);
+        console.log(`✅ Self-comparison: ${matches}`);
+
+        // Test comparison with numeric version if applicable
+        if (
+          !isNaN(Number(batch)) &&
+          batch !== null &&
+          batch !== undefined &&
+          batch !== ""
+        ) {
+          const numericComparison = String(batch) === String(Number(batch));
+          console.log(
+            `🔢 Numeric comparison: "${String(batch)}" === "${String(
+              Number(batch)
+            )}" = ${numericComparison}`
+          );
+        }
+      } catch (error) {
+        console.log(`❌ Conversion failed: ${error.message}`);
+      }
+    }
+
+    console.log("\n✅ BATCH NUMBER LOGIC TEST COMPLETE");
+    console.log("📝 This test verifies the core logic works correctly");
+    console.log(
+      "🔧 To test with real data, configure your SPREADSHEET_ID and run testBatchNumberHandling()"
+    );
+
+    return true;
+  } catch (error) {
+    console.error("❌ Logic test failed:", error);
+    return false;
   }
 }

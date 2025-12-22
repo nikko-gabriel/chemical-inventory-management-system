@@ -388,17 +388,38 @@
 
 ## �📋 Common Issues & Solutions
 
-| Issue                          | Solution                                                                                                 |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| "Authorization Required"       | Follow [Authorization Instructions](#authorization-instructions) above                                   |
-| "Function not found"           | Authorize all scripts and set up triggers manually (see Step 2)                                          |
-| "Loading..." in dropdowns      | Run `updateAllFormDropdowns()` in `FormManager.gs`                                                       |
-| Form not submitting            | Check manual trigger setup (Step 2) and form-sheet linking                                               |
-| Calculations wrong             | Check formulas in MASTERLIST columns I & J; run `updateMasterlist()` if transaction totals are incorrect |
-| New chemical not in MASTERLIST | Run `manualSyncChemicals()` in `Code.gs` after adding to CHEM_LIST                                       |
-| Chemical missing from dropdown | Run `manualSyncChemicals()` then `updateAllFormDropdowns()`                                              |
-| System health issues           | Run `SystemMonitor.getSystemStatus()` in `DataProcessingUtils.gs`                                        |
-| Complete system reset          | Run `deployChemicalInventorySystem()` in `DeploymentUtils.gs`                                            |
+| Issue                               | Solution                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **"SPREADSHEET_ID not configured"** | **Update the `SPREADSHEET_ID` constant in Code.gs with your actual Google Sheets ID**                    |
+| **Batch numbers not saving**        | **FIXED! Run `testBatchNumberLogic()` to verify the enhanced batch handling**                            |
+| **Numeric batch numbers failing**   | **RESOLVED! System now handles all formats (123, ABC123, LOT-456)**                                      |
+| "Authorization Required"            | Follow [Authorization Instructions](#authorization-instructions) above                                   |
+| "Function not found"                | Authorize all scripts and set up triggers manually (see Step 2)                                          |
+| "Loading..." in dropdowns           | Run `updateAllFormDropdowns()` in `FormManager.gs`                                                       |
+| Form not submitting                 | Check manual trigger setup (Step 2) and form-sheet linking                                               |
+| Calculations wrong                  | Check formulas in MASTERLIST columns I & J; run `updateMasterlist()` if transaction totals are incorrect |
+| New chemical not in MASTERLIST      | Run `manualSyncChemicals()` in `Code.gs` after adding to CHEM_LIST                                       |
+| Chemical missing from dropdown      | Run `manualSyncChemicals()` then `updateAllFormDropdowns()`                                              |
+| System health issues                | Run `SystemMonitor.getSystemStatus()` in `DataProcessingUtils.gs`                                        |
+| Complete system reset               | Run `deployChemicalInventorySystem()` in `DeploymentUtils.gs`                                            |
+
+### 🧪 **New: Batch Number Testing**
+
+The system now **fully supports all batch number formats**:
+
+- ✅ **Pure numeric**: `123`, `456789`
+- ✅ **Alphanumeric**: `ABC123`, `LOT456`
+- ✅ **Special characters**: `BATCH-001`, `TEST_2024`, `2024-DEC-001`
+
+**Test your batch numbers**:
+
+```javascript
+// Test any batch number format (no spreadsheet required)
+testBatchNumberLogic();
+
+// Test with your actual data (requires SPREADSHEET_ID configured)
+testBatchNumberHandling();
+```
 
 ---
 

@@ -105,44 +105,49 @@ The Reports Add-on provides comprehensive reporting capabilities for your Chemic
 
 ## 📋 How to Generate Reports
 
-### ✨ **User-Friendly Interface** (Recommended - No Scripts!)
+### ✨ **User-Friendly Drawing Button Interface** (Recommended - No Scripts!)
 
-Generate reports directly from the REPORTS sheet interface:
+Generate reports using a professional clickable button interface:
 
-#### 📱 **Simple 4-Step Process:**
+#### 🎨 **Step 1: Create the Drawing Button**
 
-1. **Select Chemical**: Click dropdown in cell B4 → Choose your chemical
+1. **Open your REPORTS sheet** in Google Sheets
+2. **Insert → Drawing**
+3. **Create the button**:
+   - **Shape**: Rectangle (rounded recommended)
+   - **Fill color**: #4CAF50 (green)
+   - **Border**: #2E7D32 (dark green), 3px weight
+   - **Text**: "🔍 GENERATE REPORT" (size 14, bold, white)
+4. **Save and Close**
+5. **Position over cells F7:H7**
+
+#### 🔗 **Step 2: Assign the Script**
+
+1. **Click your button** in the sheet
+2. **Click the three dots (⋮)** in the button corner
+3. **Select "Assign script"**
+4. **Type**: `generateReportButton`
+5. **Click OK**
+
+#### 📱 **Step 3: Generate Reports**
+
+1. **Select Chemical**: Click dropdown in cell B4
 2. **Enter Start Date**: Cell B5 → Type: `2025-12-01`
 3. **Enter End Date**: Cell B6 → Type: `2025-12-31`
-4. **Generate Report**: Click the green **🔍 GENERATE REPORT** button in B7
+4. **Click your GREEN BUTTON** → Report generates automatically!
 
-**The report appears automatically below!** ✨
+**The report appears below with full formatting!** ✨
 
-#### 📋 **Visual Interface:**
+#### 🔄 **Step 4: Clear for New Report**
 
-```
-📊 REPORT GENERATOR
-1. Select Chemical:    [Sodium Chloride    ▼]
-2. Start Date:         [2025-12-01        ] (YYYY-MM-DD format)
-3. End Date:           [2025-12-31        ] (YYYY-MM-DD format)
-4. Generate Report:    [🔍 GENERATE REPORT ] ← Click this button!
-5. Start New Report:   [🔄 CLEAR FORM     ] ← Click to start over
-```
+Optionally create a second orange **"CLEAR FORM"** button:
 
-#### 🔄 **Starting a New Report:**
+- Assign script: `clearReportForm`
+- Clears inputs and previous reports
 
-After generating a report, simply click the orange **🔄 CLEAR FORM** button to:
-- Clear the chemical selection
-- Reset the date fields
-- Clear any previous report data
-- Show a ready-for-new-report message
+---
 
-#### ⚡ **Quick Shortcuts:**
-
-- **Current Month**: Select chemical, then run `generateCurrentMonthReport()` in Scripts
-- **Last 30 Days**: Select chemical, then run `generateLast30DaysReportUI()` in Scripts
-
-### 🔧 **Advanced: Script-Based Generation** (For Power Users)
+### 🔧 **Alternative: Script-Based Generation** (For Advanced Users)
 
 If you prefer using scripts directly:
 
@@ -295,18 +300,19 @@ function generateWeeklyReports() {
 
 ## 🛠️ Troubleshooting
 
-### User Interface Issues
+## 🛠️ Troubleshooting
 
-| Issue                         | Solution                                                 |
-| ----------------------------- | -------------------------------------------------------- |
-| Typing 'GO' does nothing      | Check that edit trigger is set up properly               |
-| "No chemicals found" dropdown | Run `refreshChemicalDropdown()` or check CHEM_LIST sheet |
-| Dropdown is empty             | Run `setupChemicalDropdown()` in Apps Script             |
-| 'GO' button not responsive    | Verify `handleReportTrigger` trigger exists              |
-| Error messages persist        | Clear cell C7 manually and try again                     |
-| Interface layout broken       | Run `initializeReportsSheet()` to reset                  |
+### **Drawing Button Issues**
 
-### Common Report Issues
+| Issue                      | Solution                                                                           |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| Button doesn't exist       | Create drawing button: Insert → Drawing → Assign script: `generateReportButton`    |
+| Button not responding      | Check script assignment: Click button → ⋮ → Assign script → `generateReportButton` |
+| "Function not found" error | Ensure ReportsAddon.gs is added to your Apps Script project                        |
+| No visual feedback         | Button should show loading states and popup confirmations                          |
+| Report not generating      | Check chemical dropdown has data, dates are YYYY-MM-DD format                      |
+
+### **Common Report Issues**
 
 | Issue                             | Solution                                       |
 | --------------------------------- | ---------------------------------------------- |
@@ -315,27 +321,30 @@ function generateWeeklyReports() {
 | "Invalid date format"             | Use "YYYY-MM-DD" format (e.g., 2025-12-01)     |
 | No transactions shown             | Check date range and chemical name             |
 | Script timeout                    | Try smaller date ranges or fewer chemicals     |
+| Empty chemical dropdown           | Run `refreshChemicalDropdown()`                |
 
-### Quick Fixes
+### **Button Creation Help**
 
-**Reset Everything:**
+If you need to recreate the drawing button:
+
+1. **Insert → Drawing**
+2. **Rectangle shape** with:
+   - Fill: #4CAF50 (green)
+   - Border: #2E7D32, 3px
+   - Text: "🔍 GENERATE REPORT" (white, bold, size 14)
+3. **Save and Close**
+4. **Click button → ⋮ → Assign script → `generateReportButton`**
+
+### **Testing the Button**
+
+Test the button functionality:
 
 ```javascript
-// Run these in Apps Script
-initializeReportsSheet();
-refreshChemicalDropdown();
-```
+// Test if button function works
+generateReportButton();
 
-**Fix Dropdown Issues:**
-
-```javascript
-refreshChemicalDropdown();
-```
-
-**Test Interface:**
-
-```javascript
-exampleReportUsage();
+// Test basic report generation
+testReportGeneration();
 ```
 
 ### Data Requirements
@@ -516,7 +525,7 @@ function testReportsSetup() {
   try {
     const mockEvent = {
       range: reportsSheet.getRange(7, 2),
-      source: ss
+      source: ss,
     };
     handleReportTrigger(mockEvent);
     console.log("Manual trigger test completed");
